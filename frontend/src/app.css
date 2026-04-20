@@ -1,0 +1,133 @@
+:root {
+  /* ── Background layers ─────────────────────────────────── */
+  --color-bg:            #08080f;
+  --color-bg-panel:      #0f0f1a;
+  --color-bg-elevated:   #161624;
+  --color-bg-hover:      #1e1e30;
+
+  /* ── Borders ───────────────────────────────────────────── */
+  --color-border:        #2a2a42;
+  --color-border-subtle: #1a1a2e;
+
+  /* ── Text ──────────────────────────────────────────────── */
+  --color-text:          #c8c4dc;
+  --color-text-muted:    #6b6880;
+  --color-text-heading:  #e8e4f8;
+
+  /* ── Gold — glory, wealth, power ──────────────────────── */
+  --color-gold:          #c8a84b;
+  --color-gold-bright:   #e8c96a;
+  --color-gold-dim:      #8a7433;
+
+  /* ── Magic purple ──────────────────────────────────────── */
+  --color-magic:         #7c3aed;
+  --color-magic-bright:  #a855f7;
+  --color-magic-glow:    rgba(124, 58, 237, 0.3);
+
+  /* ── Dragon / Devil red ────────────────────────────────── */
+  --color-danger:        #dc2626;
+  --color-danger-bright: #ef4444;
+  --color-danger-glow:   rgba(220, 38, 38, 0.3);
+
+  /* ── Frost blue ────────────────────────────────────────── */
+  --color-frost:         #0ea5e9;
+
+  /* ── Layout dimensions ─────────────────────────────────── */
+  --sidebar-width-expanded:  220px;
+  --sidebar-width-collapsed: 56px;
+  --topbar-height:           52px;
+  --bottombar-height:        56px;
+
+  /* ── Transitions ───────────────────────────────────────── */
+  --transition-fast:   0.15s ease;
+  --transition-normal: 0.25s ease;
+
+  /* ── Fonts ─────────────────────────────────────────────── */
+  --font-body:    'Inter', system-ui, 'Segoe UI', sans-serif;
+  --font-heading: 'Cinzel', Georgia, serif;
+}
+
+/* ── Light theme ─────────────────────────────────────────── */
+html[data-theme="light"] {
+  --color-bg:            #f8f7fc;
+  --color-bg-panel:      #f0eef9;
+  --color-bg-elevated:   #e8e5f3;
+  --color-bg-hover:      #e0dce9;
+
+  --color-border:        #d4cfe5;
+  --color-border-subtle: #e8e3f5;
+
+  --color-text:          #3a3650;
+  --color-text-muted:    #8b7fa3;
+  --color-text-heading:  #2a2340;
+
+  --color-gold:          #c8a84b;
+  --color-gold-bright:   #d4a741;
+  --color-gold-dim:      #8a7433;
+}
+
+/* ── Global reset & base styles ──────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden; /* prevent body scroll; each section scrolls itself */
+}
+
+#app {
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+  color: var(--color-text-heading);
+}
+
+p {
+  margin: 0;
+}
+
+button {
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+
+/* Scrollbar styling for Webkit browsers */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-panel);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+
