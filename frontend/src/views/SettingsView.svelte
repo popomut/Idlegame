@@ -281,11 +281,6 @@
     background-color: var(--color-magic-bright);
   }
 
-  .toggle.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
   /* Danger button */
   .danger-btn {
     padding: 7px 16px;

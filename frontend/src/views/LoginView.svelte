@@ -1,6 +1,7 @@
 <script>
   import { navigateTo } from '../stores/navigation.js';
   import { isAuthenticated } from '../stores/auth.js';
+  import { API_BASE_URL } from '../services/api.js';
 
   let guestLoading = false;
   let googleLoading = false;
@@ -12,7 +13,7 @@
     
     try {
       // Call backend to create guest account
-      const response = await fetch('http://localhost:3000/api/auth/guest', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/guest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // Important: send cookies

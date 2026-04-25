@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { API_BASE_URL } from '../services/api.js';
 
 export const authToken = writable(null);
 export const username = writable(null);
@@ -13,7 +14,7 @@ export async function loadAuthFromStorage() {
 
 async function fetchUserInfo() {
   try {
-    const response = await fetch('http://localhost:3000/api/user', {
+    const response = await fetch(`${API_BASE_URL}/api/user`, {
       credentials: 'include', // Send cookies
     });
     
@@ -40,7 +41,7 @@ export function clearAuth() {
   isAuthenticated.set(false);
   
   // Optionally call logout endpoint to clear server session
-  fetch('http://localhost:3000/api/auth/logout', {
+  fetch(`${API_BASE_URL}/api/auth/logout`, {
     method: 'POST',
     credentials: 'include',
   }).catch(() => {});
