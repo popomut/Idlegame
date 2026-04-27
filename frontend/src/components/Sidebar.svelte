@@ -3,14 +3,14 @@
   import { currentPage, navigateTo } from '../stores/navigation.js';
 
   const menuItems = [
-    { id: 'home',         label: 'Home',          icon: '&#x1F3E0;' },
-    { id: 'combat',       label: 'Combat',         icon: '&#x2694;&#xFE0F;' },
-    { id: 'mining',       label: 'Mining',         icon: '&#x26CF;&#xFE0F;' },
-    { id: 'skills',       label: 'Skills',          icon: '&#x1F4D6;' },
-    { id: 'inventory',    label: 'Inventory',      icon: '&#x1F392;' },
-    { id: 'shop',         label: 'Shop',           icon: '&#x1F3EA;' },
-    { id: 'achievements', label: 'Achievements',   icon: '&#x1F3C6;' },
-    { id: 'settings',     label: 'Settings',       icon: '&#x2699;&#xFE0F;' },
+    { id: 'home',         label: 'Base Camp',      icon: '&#x26FA;' },
+    { id: 'combat',       label: 'Engagement',     icon: '&#x2694;&#xFE0F;' },
+    { id: 'mining',       label: 'Extraction',     icon: '&#x26CF;&#xFE0F;' },
+    { id: 'skills',       label: 'Training',       icon: '&#x1F4AA;' },
+    { id: 'inventory',    label: 'Field Kit',      icon: '&#x1F392;' },
+    { id: 'shop',         label: 'Black Market',   icon: '&#x1F4B0;' },
+    { id: 'achievements', label: 'Commendations',  icon: '&#x1F396;&#xFE0F;' },
+    { id: 'settings',     label: 'Ops Center',     icon: '&#x2699;&#xFE0F;' },
   ];
 
   function handleMenuClick(itemId) {

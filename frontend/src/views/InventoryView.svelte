@@ -9,26 +9,26 @@
   ];
 
   const inventoryItems = [
-    { id: 1, name: 'Health Potion',   icon: '&#x1F9EA;', qty: 3, rarity: 'common' },
-    { id: 2, name: 'Mana Crystal',    icon: '&#x1F52E;', qty: 2, rarity: 'uncommon' },
+    { id: 1, name: 'Medkit',          icon: '&#x1F9EA;', qty: 3,  rarity: 'common' },
+    { id: 2, name: 'Stim Pack',       icon: '&#x1F489;', qty: 2,  rarity: 'uncommon' },
     { id: 3, name: 'Iron Ore',        icon: '&#x26AB;',  qty: 10, rarity: 'common' },
-    { id: 4, name: 'Dragon Scale',    icon: '&#x1F409;', qty: 1, rarity: 'rare' },
-    { id: 5, name: 'Old Map',         icon: '&#x1F5FA;&#xFE0F;', qty: 1, rarity: 'uncommon' },
-    { id: 6, name: 'Gold Coin',       icon: '&#x1FA99;', qty: 50, rarity: 'common' },
+    { id: 4, name: 'Mutant Sample',   icon: '&#x1F9EC;', qty: 1,  rarity: 'rare' },
+    { id: 5, name: 'Tactical Map',    icon: '&#x1F5FA;&#xFE0F;', qty: 1, rarity: 'uncommon' },
+    { id: 6, name: 'Dog Tag',         icon: '&#x1FA96;', qty: 50, rarity: 'common' },
   ];
 </script>
 
 <div class="view-inventory">
   <div class="page-header">
-    <h1 class="page-title">&#x1F392; Inventory</h1>
-    <p class="page-subtitle">Your items and equipment</p>
+    <h1 class="page-title">&#x1F392; Field Kit</h1>
+    <p class="page-subtitle">Gear and supplies</p>
   </div>
 
   <!-- Equipment -->
   <div class="card">
     <div class="card-header">
       <span class="card-icon">&#x1F6E1;&#xFE0F;</span>
-      <h2 class="card-title">Equipment</h2>
+      <h2 class="card-title">Loadout</h2>
     </div>
     <div class="equipment-grid">
       {#each equippedSlots as slot}
@@ -47,7 +47,7 @@
   <div class="card">
     <div class="card-header">
       <span class="card-icon">&#x1F392;</span>
-      <h2 class="card-title">Bag</h2>
+      <h2 class="card-title">Field Pack</h2>
       <span class="bag-count">{inventoryItems.length} / 24</span>
     </div>
     <div class="items-list">
@@ -199,7 +199,7 @@
   }
 
   .rarity-uncommon {
-    border-left-color: #22c55e;
+    border-left-color: #3a8a3a;
   }
 
   .rarity-rare {

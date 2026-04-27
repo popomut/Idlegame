@@ -1,36 +1,41 @@
 :root {
   /* ── Background layers ─────────────────────────────────── */
-  --color-bg:            #08080f;
-  --color-bg-panel:      #0f0f1a;
-  --color-bg-elevated:   #161624;
-  --color-bg-hover:      #1e1e30;
+  --color-bg:            #040904;
+  --color-bg-panel:      #080f08;
+  --color-bg-elevated:   #0d180d;
+  --color-bg-hover:      #152215;
 
   /* ── Borders ───────────────────────────────────────────── */
-  --color-border:        #2a2a42;
-  --color-border-subtle: #1a1a2e;
+  --color-border:        #1a3c1a;
+  --color-border-subtle: #0e1e0e;
 
   /* ── Text ──────────────────────────────────────────────── */
-  --color-text:          #c8c4dc;
-  --color-text-muted:    #6b6880;
-  --color-text-heading:  #e8e4f8;
+  --color-text:          #88aa88;
+  --color-text-muted:    #486448;
+  --color-text-heading:  #a8d4a8;
 
-  /* ── Gold — glory, wealth, power ──────────────────────── */
-  --color-gold:          #c8a84b;
-  --color-gold-bright:   #e8c96a;
-  --color-gold-dim:      #8a7433;
+  /* ── Credits — military brass/amber ───────────────────── */
+  --color-gold:          #c8a840;
+  --color-gold-bright:   #e8c860;
+  --color-gold-dim:      #7a6828;
 
-  /* ── Magic purple ──────────────────────────────────────── */
-  --color-magic:         #7c3aed;
-  --color-magic-bright:  #a855f7;
-  --color-magic-glow:    rgba(124, 58, 237, 0.3);
+  /* ── Chemical / Toxic green ────────────────────────────── */
+  --color-magic:         #2a9e2a;
+  --color-magic-bright:  #3dc83d;
+  --color-magic-glow:    rgba(42, 158, 42, 0.3);
 
-  /* ── Dragon / Devil red ────────────────────────────────── */
-  --color-danger:        #dc2626;
-  --color-danger-bright: #ef4444;
-  --color-danger-glow:   rgba(220, 38, 38, 0.3);
+  /* ── Explosion / Fire orange-red ───────────────────────── */
+  --color-danger:        #cc4a00;
+  --color-danger-bright: #ff6600;
+  --color-danger-glow:   rgba(204, 74, 0, 0.3);
 
-  /* ── Frost blue ────────────────────────────────────────── */
-  --color-frost:         #0ea5e9;
+  /* ── Biohazard / Hazard neon green ─────────────────────── */
+  --color-hazard:        #55cc00;
+  --color-hazard-bright: #77ff11;
+  --color-hazard-glow:   rgba(85, 204, 0, 0.25);
+
+  /* ── Chemical cryo / teal ──────────────────────────────── */
+  --color-frost:         #00ccaa;
 
   /* ── Layout dimensions ─────────────────────────────────── */
   --sidebar-width-expanded:  220px;
@@ -38,32 +43,37 @@
   --topbar-height:           52px;
   --bottombar-height:        56px;
 
+  /* ── Border radius — angular military style ─────────────── */
+  --radius-card: 4px;
+  --radius-btn:  3px;
+  --radius-sm:   2px;
+
   /* ── Transitions ───────────────────────────────────────── */
   --transition-fast:   0.15s ease;
   --transition-normal: 0.25s ease;
 
   /* ── Fonts ─────────────────────────────────────────────── */
-  --font-body:    'Inter', system-ui, 'Segoe UI', sans-serif;
-  --font-heading: 'Cinzel', Georgia, serif;
+  --font-body:    'Exo 2', 'Segoe UI', system-ui, sans-serif;
+  --font-heading: 'Rajdhani', 'Impact', sans-serif;
 }
 
-/* ── Light theme ─────────────────────────────────────────── */
+/* ── Contaminated daylight (light) variant ───────────────── */
 html[data-theme="light"] {
-  --color-bg:            #f8f7fc;
-  --color-bg-panel:      #f0eef9;
-  --color-bg-elevated:   #e8e5f3;
-  --color-bg-hover:      #e0dce9;
+  --color-bg:            #111f11;
+  --color-bg-panel:      #162416;
+  --color-bg-elevated:   #1e301e;
+  --color-bg-hover:      #263c26;
 
-  --color-border:        #d4cfe5;
-  --color-border-subtle: #e8e3f5;
+  --color-border:        #304a30;
+  --color-border-subtle: #223222;
 
-  --color-text:          #3a3650;
-  --color-text-muted:    #8b7fa3;
-  --color-text-heading:  #2a2340;
+  --color-text:          #b4d4b4;
+  --color-text-muted:    #7a9a7a;
+  --color-text-heading:  #cceacc;
 
-  --color-gold:          #c8a84b;
-  --color-gold-bright:   #d4a741;
-  --color-gold-dim:      #8a7433;
+  --color-gold:          #c8a840;
+  --color-gold-bright:   #d4b450;
+  --color-gold-dim:      #8a7430;
 }
 
 /* ── Global reset & base styles ──────────────────────────── */
@@ -88,7 +98,23 @@ body {
   background-color: var(--color-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden; /* prevent body scroll; each section scrolls itself */
+  overflow: hidden;
+}
+
+/* Subtle scanline overlay for post-war CRT feel */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 30, 0, 0.04) 3px,
+    rgba(0, 30, 0, 0.04) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
 }
 
 #app {
@@ -101,6 +127,8 @@ h1, h2, h3 {
   margin: 0;
   font-family: var(--font-heading);
   color: var(--color-text-heading);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 p {
@@ -112,9 +140,9 @@ button {
   font-family: var(--font-body);
 }
 
-/* Scrollbar styling for Webkit browsers */
+/* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -123,11 +151,9 @@ button {
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
-
-

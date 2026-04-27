@@ -44,19 +44,34 @@ type OreInventory struct {
 	UpdatedAt time.Time
 }
 
-// OreType defines ore properties (static data)
+// OreType defines ore properties — add rows to this table to add new ore types with no code changes
 type OreType struct {
 	ID               uint   `gorm:"primaryKey"`
-	OreKey           string `gorm:"uniqueIndex;not null"`
+	OreKey           string `gorm:"uniqueIndex;not null"` // e.g. "copper_ore"
 	OreName          string `gorm:"not null"`
 	Icon             string
 	Color            string
 	Difficulty       string
-	MiningTimeMS     int `gorm:"default:2000"` // milliseconds per ore
-	XPPerOre         int `gorm:"default:10"`
-	LevelRequired    int `gorm:"default:1"`
-	
+	MiningTimeMS     int    `gorm:"default:3000"` // milliseconds per ore
+	XPPerOre         int    `gorm:"default:10"`
+	LevelRequired    int    `gorm:"default:1"`
+	PickaxeRequired  string `gorm:"default:'none'"` // "none", "iron_pickaxe", "gold_pickaxe", "mithril_pickaxe"
+	MaxQuantity      int    `gorm:"default:0"`      // 0 = unlimited
+	SortOrder        int    `gorm:"default:0"`      // display order in UI
+
 	CreatedAt time.Time
+}
+
+// OreInventoryItem is a pivot table: one row per (user, ore type) pair.
+// Adding a new ore to OreType automatically works — no code changes needed.
+type OreInventoryItem struct {
+	ID        uint    `gorm:"primaryKey"`
+	UserID    uint    `gorm:"not null;uniqueIndex:idx_inv_user_ore"`
+	OreTypeID uint    `gorm:"not null;uniqueIndex:idx_inv_user_ore"`
+	OreType   OreType `gorm:"foreignKey:OreTypeID"`
+	Quantity  int     `gorm:"default:0"`
+
+	UpdatedAt time.Time
 }
 
 // MiningSession tracks mining progress

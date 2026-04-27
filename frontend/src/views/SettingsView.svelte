@@ -21,19 +21,19 @@
 
 <div class="view-settings">
   <div class="page-header">
-    <h1 class="page-title">&#x2699;&#xFE0F; Settings</h1>
-    <p class="page-subtitle">Configure your experience</p>
+    <h1 class="page-title">&#x2699;&#xFE0F; Operations</h1>
+    <p class="page-subtitle">Configure field parameters</p>
   </div>
 
   <!-- Player settings -->
   <div class="card">
     <div class="card-header">
-      <span class="card-icon">&#x1F9DD;</span>
-      <h2 class="card-title">Character</h2>
+      <span class="card-icon">&#x1FA96;</span>
+      <h2 class="card-title">Soldier Profile</h2>
     </div>
 
     <div class="setting-row">
-      <label class="setting-label" for="player-name">Player Name</label>
+      <label class="setting-label" for="player-name">Call Sign</label>
       <div class="name-input-group">
         <input
           id="player-name"
@@ -41,9 +41,9 @@
           type="text"
           bind:value={playerName}
           maxlength="20"
-          placeholder="Enter name..."
+          placeholder="Enter call sign..."
         />
-        <button class="save-btn" on:click={saveName}>Save</button>
+        <button class="save-btn" on:click={saveName}>Confirm</button>
       </div>
     </div>
   </div>
@@ -52,13 +52,13 @@
   <div class="card">
     <div class="card-header">
       <span class="card-icon">&#x1F3AE;</span>
-      <h2 class="card-title">Game</h2>
+      <h2 class="card-title">Field Settings</h2>
     </div>
 
     <div class="setting-row">
       <div class="setting-info">
-        <span class="setting-label">Notifications</span>
-        <span class="setting-desc">Show alerts for completed tasks</span>
+        <span class="setting-label">Alert System</span>
+        <span class="setting-desc">Receive alerts for completed objectives</span>
       </div>
       <label class="toggle">
         <input type="checkbox" bind:checked={notificationsEnabled} />
@@ -68,8 +68,8 @@
 
     <div class="setting-row">
       <div class="setting-info">
-        <span class="setting-label">Auto Save</span>
-        <span class="setting-desc">Automatically save progress</span>
+        <span class="setting-label">Auto-Sync</span>
+        <span class="setting-desc">Automatically sync mission progress</span>
       </div>
       <label class="toggle">
         <input type="checkbox" bind:checked={autoSaveEnabled} />
@@ -79,8 +79,8 @@
 
     <div class="setting-row">
       <div class="setting-info">
-        <span class="setting-label">Dark Theme</span>
-        <span class="setting-desc">Toggle between dark and light themes</span>
+        <span class="setting-label">Night Vision</span>
+        <span class="setting-desc">Toggle display mode</span>
       </div>
       <label class="toggle">
         <input type="checkbox" checked={$theme === 'dark'} on:change={handleThemeToggle} />
@@ -97,10 +97,10 @@
     </div>
     <div class="setting-row">
       <div class="setting-info">
-        <span class="setting-label">Reset Progress</span>
-        <span class="setting-desc">Wipe all saved data and start over</span>
+        <span class="setting-label">Wipe Mission Data</span>
+        <span class="setting-desc">Delete all field data and restart from scratch</span>
       </div>
-      <button class="danger-btn">Reset</button>
+      <button class="danger-btn">Wipe</button>
     </div>
   </div>
 </div>
@@ -222,17 +222,19 @@
   .save-btn {
     background-color: var(--color-bg-elevated);
     border: 1px solid var(--color-magic);
-    border-radius: 6px;
+    border-radius: 3px;
     color: var(--color-magic-bright);
     cursor: pointer;
     font-size: 13px;
     font-family: var(--font-body);
     padding: 6px 14px;
     transition: background-color var(--transition-fast);
+    letter-spacing: 1px;
+    text-transform: uppercase;
   }
 
   .save-btn:hover {
-    background-color: rgba(124, 58, 237, 0.15);
+    background-color: rgba(42, 158, 42, 0.15);
   }
 
   /* Toggle switch */
@@ -272,7 +274,7 @@
   }
 
   .toggle input:checked + .toggle-track {
-    background-color: rgba(124, 58, 237, 0.25);
+    background-color: rgba(42, 158, 42, 0.25);
     border-color: var(--color-magic);
   }
 

@@ -38,6 +38,7 @@ func main() {
         app.Post("/api/auth/login", handlers.Login)
         app.Post("/api/auth/guest", handlers.GuestLogin)
         app.Post("/api/auth/logout", handlers.Logout)
+        app.Get("/api/ore-types", handlers.GetOreTypes) // Master table — public
 
         // Protected routes (require JWT token)
         api := app.Group("/api", middleware.AuthMiddleware())
@@ -53,11 +54,6 @@ func main() {
 
         // Inventory routes
         api.Get("/inventory/ores", handlers.GetOreInventory)
-
-        // Health check
-        app.Get("/health", func(c *fiber.Ctx) error {
-                return c.JSON(fiber.Map{"status": "ok"})
-        })
 
         // Start server
         port := 5000

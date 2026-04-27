@@ -9,16 +9,16 @@
   </button>
 
   <div class="topbar-title">
-    <span class="title-dragon">&#x1F409;</span>
-    <span class="title-text">Realm of Eternity</span>
+    <span class="title-icon">&#x2623;&#xFE0F;</span>
+    <span class="title-text">TOXIC PROTOCOL</span>
   </div>
 
   <div class="topbar-right">
     <span class="gold-badge">
-      <span class="gold-icon">&#x1F4B0;</span>
+      <span class="gold-icon">&#x1FA99;</span>
       <span class="gold-amount">{$player.gold}</span>
     </span>
-    <span class="level-badge">Lv. {$player.level}</span>
+    <span class="level-badge">RANK {$player.level}</span>
   </div>
 </header>
 
@@ -70,20 +70,21 @@
     min-width: 0;
   }
 
-  .title-dragon {
+  .title-icon {
     font-size: 20px;
     flex-shrink: 0;
   }
 
   .title-text {
     font-family: var(--font-heading);
-    font-size: 17px;
-    color: var(--color-gold);
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    font-size: 16px;
+    color: var(--color-magic-bright);
+    font-weight: 700;
+    letter-spacing: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-transform: uppercase;
   }
 
   .topbar-right {

@@ -18,22 +18,22 @@
 <div class="view-home">
   <!-- Page header -->
   <div class="page-header">
-    <h1 class="page-title">&#x2694;&#xFE0F; Welcome, {$player.name}</h1>
+    <h1 class="page-title">&#x1FA96; OPERATIVE, {$player.name}</h1>
     <p class="page-subtitle">{$player.class}</p>
   </div>
 
   <!-- Character card -->
   <div class="card character-card">
     <div class="card-header">
-      <span class="card-icon">&#x1F9D9;</span>
-      <h2 class="card-title">Character</h2>
-      <span class="level-tag">Level {$player.level}</span>
+      <span class="card-icon">&#x1FA96;</span>
+      <h2 class="card-title">Operator Profile</h2>
+      <span class="level-tag">Rank {$player.level}</span>
     </div>
 
     <div class="stat-bars">
       <!-- XP bar -->
       <div class="stat-row">
-        <span class="stat-label">&#x2B50; XP</span>
+        <span class="stat-label">&#x1F3AF; EXP</span>
         <div class="stat-bar-track">
           <div
             class="stat-bar-fill xp-fill"
@@ -45,7 +45,7 @@
 
       <!-- HP bar -->
       <div class="stat-row">
-        <span class="stat-label">&#x2764;&#xFE0F; HP</span>
+        <span class="stat-label">&#x1FA79; VITALS</span>
         <div class="stat-bar-track">
           <div
             class="stat-bar-fill hp-fill"
@@ -55,9 +55,9 @@
         <span class="stat-value">{$player.hp} / {$player.maxHp}</span>
       </div>
 
-      <!-- Mana bar -->
+      <!-- Mana/Stims bar -->
       <div class="stat-row">
-        <span class="stat-label">&#x1F52E; Mana</span>
+        <span class="stat-label">&#x1F489; STIMS</span>
         <div class="stat-bar-track">
           <div
             class="stat-bar-fill mana-fill"
@@ -72,25 +72,25 @@
   <!-- Quick actions -->
   <div class="card">
     <div class="card-header">
-      <span class="card-icon">&#x26A1;</span>
-      <h2 class="card-title">Quick Actions</h2>
+      <span class="card-icon">&#x1F3AF;</span>
+      <h2 class="card-title">Tactical Options</h2>
     </div>
     <div class="quick-actions">
       <button class="action-btn danger-btn" on:click={() => navigateTo('combat')}>
         <span class="action-icon">&#x2694;&#xFE0F;</span>
-        <span>Combat</span>
+        <span>Engage</span>
       </button>
       <button class="action-btn magic-btn" on:click={() => navigateTo('skills')}>
-        <span class="action-icon">&#x1F4D6;</span>
-        <span>Skills</span>
+        <span class="action-icon">&#x1F4AA;</span>
+        <span>Train</span>
       </button>
       <button class="action-btn gold-btn" on:click={() => navigateTo('shop')}>
-        <span class="action-icon">&#x1F3EA;</span>
-        <span>Shop</span>
+        <span class="action-icon">&#x1F4B0;</span>
+        <span>Black Market</span>
       </button>
       <button class="action-btn" on:click={() => navigateTo('inventory')}>
         <span class="action-icon">&#x1F392;</span>
-        <span>Inventory</span>
+        <span>Field Kit</span>
       </button>
     </div>
   </div>
@@ -98,8 +98,8 @@
   <!-- Activity log -->
   <div class="card activity-card">
     <div class="card-header">
-      <span class="card-icon">&#x1F4DC;</span>
-      <h2 class="card-title">Activity Log</h2>
+      <span class="card-icon">&#x1F4E1;</span>
+      <h2 class="card-title">Comms Log</h2>
     </div>
     <ul class="activity-log">
       {#each $activityLog as entry}
@@ -137,7 +137,7 @@
     font-size: 13px;
     color: var(--color-magic-bright);
     margin: 0;
-    letter-spacing: 0.5px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
   }
 
@@ -218,7 +218,7 @@
   }
 
   .hp-fill {
-    background: linear-gradient(90deg, #15803d, #22c55e);
+    background: linear-gradient(90deg, #1a5a1a, #2a9e2a);
   }
 
   .mana-fill {

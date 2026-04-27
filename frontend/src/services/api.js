@@ -51,6 +51,7 @@ export const miningAPI = {
 
 export const inventoryAPI = {
   getOreInventory: () => api.get('/inventory/ores'),
+  getOreTypes: () => axios.get(`${API_BASE_URL}/api/ore-types`), // public — no auth cookie needed
 };
 
 export const userAPI = {

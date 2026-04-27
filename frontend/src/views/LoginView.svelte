@@ -53,8 +53,8 @@
 <div class="login-container">
   <div class="login-card">
     <div class="login-header">
-      <h1 class="login-title">Realm of Eternity</h1>
-      <p class="login-subtitle">Enter the world of magic and adventure</p>
+      <h1 class="login-title">TOXIC PROTOCOL</h1>
+      <p class="login-subtitle">&#x2623;&#xFE0F; Survive the contaminated zone</p>
     </div>
 
     <div class="login-buttons">
@@ -64,14 +64,14 @@
         disabled={guestLoading || googleLoading}
       >
         {#if googleLoading}
-          <span class="btn-spinner">⏳</span>
+          <span class="btn-spinner">&#x23F3;</span>
         {:else}
-          <span class="btn-icon">🔑</span>
+          <span class="btn-icon">&#x1F511;</span>
         {/if}
-        Sign in with Google
+        Intel Access via Google
       </button>
 
-      <div class="divider">OR</div>
+      <div class="divider">— OR —</div>
 
       <button
         class="login-btn guest-btn"
@@ -79,11 +79,11 @@
         disabled={guestLoading || googleLoading}
       >
         {#if guestLoading}
-          <span class="btn-spinner">⏳</span>
+          <span class="btn-spinner">&#x23F3;</span>
         {:else}
-          <span class="btn-icon">👤</span>
+          <span class="btn-icon">&#x1FA96;</span>
         {/if}
-        Play as Guest
+        Deploy as Recruit
       </button>
     </div>
 
@@ -94,7 +94,7 @@
     {/if}
 
     <p class="login-note">
-      ✨ Your progress will be saved locally on this device
+      &#x2622;&#xFE0F; Mission data stored in secure field cache
     </p>
   </div>
 </div>
@@ -105,19 +105,20 @@
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    background: linear-gradient(135deg, var(--color-bg-dark) 0%, var(--color-danger-dim) 100%);
+    background:
+      linear-gradient(135deg, var(--color-bg) 0%, #0a1a0a 60%, #0d1f0a 100%);
     padding: 20px;
     font-family: var(--font-body);
   }
 
   .login-card {
     background: var(--color-bg-panel);
-    border: 2px solid var(--color-gold-dim);
-    border-radius: 16px;
+    border: 2px solid var(--color-magic);
+    border-radius: 4px;
     padding: 48px 32px;
     max-width: 400px;
     width: 100%;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 40px rgba(42, 158, 42, 0.15), 0 20px 60px rgba(0, 0, 0, 0.6);
   }
 
   .login-header {
@@ -127,16 +128,20 @@
 
   .login-title {
     font-family: var(--font-heading);
-    font-size: 32px;
-    color: var(--color-gold-bright);
+    font-size: 36px;
+    color: var(--color-magic-bright);
     margin: 0 0 8px;
-    text-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px rgba(61, 200, 61, 0.5);
+    text-transform: uppercase;
   }
 
   .login-subtitle {
-    font-size: 14px;
+    font-size: 13px;
     color: var(--color-text-muted);
     margin: 0;
+    letter-spacing: 1px;
+    text-transform: uppercase;
   }
 
   .login-buttons {
@@ -153,11 +158,13 @@
     gap: 12px;
     padding: 14px 20px;
     border: none;
-    border-radius: 8px;
-    font-size: 16px;
+    border-radius: 3px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    letter-spacing: 1px;
+    text-transform: uppercase;
   }
 
   .login-btn:disabled {
@@ -166,23 +173,23 @@
   }
 
   .google-btn {
-    background: #4285f4;
+    background: #2a5a9e;
     color: white;
   }
 
   .google-btn:hover:not(:disabled) {
-    background: #3367d6;
-    transform: translateY(-2px);
+    background: #1e4a8e;
+    transform: translateY(-1px);
   }
 
   .guest-btn {
-    background: var(--color-gold-dim);
+    background: var(--color-magic);
     color: #000;
   }
 
   .guest-btn:hover:not(:disabled) {
-    background: var(--color-gold-bright);
-    transform: translateY(-2px);
+    background: var(--color-magic-bright);
+    transform: translateY(-1px);
   }
 
   .btn-icon {

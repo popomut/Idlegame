@@ -1,39 +1,39 @@
 <script>
   const skillGroups = [
     {
-      name: 'Combat',
+      name: 'Combat Ops',
       icon: '&#x2694;&#xFE0F;',
       skills: [
-        { id: 'attack',   name: 'Attack',   icon: '&#x1F5E1;&#xFE0F;', level: 3, xp: 45, maxXp: 100 },
-        { id: 'defense',  name: 'Defense',  icon: '&#x1F6E1;&#xFE0F;', level: 2, xp: 20, maxXp: 100 },
-        { id: 'strength', name: 'Strength', icon: '&#x1F4AA;',          level: 2, xp: 60, maxXp: 100 },
+        { id: 'attack',    name: 'Strike',       icon: '&#x1F5E1;&#xFE0F;', level: 3, xp: 45, maxXp: 100 },
+        { id: 'defense',   name: 'Fortification',icon: '&#x1F6E1;&#xFE0F;', level: 2, xp: 20, maxXp: 100 },
+        { id: 'strength',  name: 'Endurance',    icon: '&#x1F4AA;',          level: 2, xp: 60, maxXp: 100 },
       ],
     },
     {
-      name: 'Magic',
-      icon: '&#x2728;',
+      name: 'Chemical Warfare',
+      icon: '&#x2622;&#xFE0F;',
       skills: [
-        { id: 'fire',       name: 'Pyromancy',    icon: '&#x1F525;', level: 1, xp: 10, maxXp: 100 },
-        { id: 'frost',      name: 'Cryomancy',    icon: '&#x2744;&#xFE0F;', level: 1, xp: 0,  maxXp: 100 },
-        { id: 'lightning',  name: 'Storm Magic',  icon: '&#x26A1;',  level: 1, xp: 5,  maxXp: 100 },
+        { id: 'fire',      name: 'Incendiary Ops', icon: '&#x1F525;', level: 1, xp: 10, maxXp: 100 },
+        { id: 'frost',     name: 'Cryo Agents',    icon: '&#x2744;&#xFE0F;', level: 1, xp: 0,  maxXp: 100 },
+        { id: 'lightning', name: 'EMP Tactics',    icon: '&#x26A1;',  level: 1, xp: 5,  maxXp: 100 },
       ],
     },
     {
-      name: 'Gathering',
-      icon: '&#x1F33F;',
+      name: 'Field Ops',
+      icon: '&#x1F333;',
       skills: [
-        { id: 'mining',     name: 'Mining',       icon: '&#x26CF;&#xFE0F;', level: 1, xp: 0, maxXp: 100 },
-        { id: 'herbalism',  name: 'Herbalism',    icon: '&#x1F33C;',        level: 1, xp: 0, maxXp: 100 },
-        { id: 'fishing',    name: 'Fishing',      icon: '&#x1F3A3;',        level: 1, xp: 0, maxXp: 100 },
+        { id: 'mining',    name: 'Extraction',    icon: '&#x26CF;&#xFE0F;', level: 1, xp: 0, maxXp: 100 },
+        { id: 'herbalism', name: 'Bio Sampling',  icon: '&#x1F9EC;',        level: 1, xp: 0, maxXp: 100 },
+        { id: 'fishing',   name: 'Water Sourcing',icon: '&#x1F3A3;',        level: 1, xp: 0, maxXp: 100 },
       ],
     },
     {
-      name: 'Crafting',
+      name: 'Engineering',
       icon: '&#x1F528;',
       skills: [
-        { id: 'smithing',    name: 'Smithing',   icon: '&#x1F528;', level: 1, xp: 0, maxXp: 100 },
-        { id: 'alchemy',     name: 'Alchemy',    icon: '&#x2697;&#xFE0F;', level: 1, xp: 0, maxXp: 100 },
-        { id: 'enchanting',  name: 'Enchanting', icon: '&#x1FA84;', level: 1, xp: 0, maxXp: 100 },
+        { id: 'smithing',   name: 'Fabrication',         icon: '&#x1F528;', level: 1, xp: 0, maxXp: 100 },
+        { id: 'alchemy',    name: 'Chemical Synthesis',  icon: '&#x2697;&#xFE0F;', level: 1, xp: 0, maxXp: 100 },
+        { id: 'enchanting', name: 'Weapon Modification', icon: '&#x1FA84;', level: 1, xp: 0, maxXp: 100 },
       ],
     },
   ];
@@ -45,8 +45,8 @@
 
 <div class="view-skills">
   <div class="page-header">
-    <h1 class="page-title">&#x1F4D6; Skills</h1>
-    <p class="page-subtitle">Train your abilities</p>
+    <h1 class="page-title">&#x1F4AA; Training</h1>
+    <p class="page-subtitle">Develop field proficiencies</p>
   </div>
 
   {#each skillGroups as group}

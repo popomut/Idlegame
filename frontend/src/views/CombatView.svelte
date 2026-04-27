@@ -33,8 +33,8 @@
 
 <div class="view-combat">
   <div class="page-header">
-    <h1 class="page-title">&#x2694;&#xFE0F; Combat</h1>
-    <p class="page-subtitle">Fight monsters, earn rewards</p>
+    <h1 class="page-title">&#x2694;&#xFE0F; Engagement</h1>
+    <p class="page-subtitle">Neutralize hostiles, secure objectives</p>
   </div>
 
   <!-- Arena -->
@@ -42,9 +42,9 @@
     <div class="combatants">
       <!-- Player side -->
       <div class="combatant player-side">
-        <div class="combatant-icon">&#x1F9DD;</div>
+        <div class="combatant-icon">&#x1FA96;</div>
         <div class="combatant-name">{$player.name}</div>
-        <div class="combatant-level">Lv. {$player.level}</div>
+        <div class="combatant-level">Rank {$player.level}</div>
         <div class="hp-bar-track">
           <div
             class="hp-bar-fill player-hp"
@@ -60,7 +60,7 @@
       <div class="combatant enemy-side">
         <div class="combatant-icon">{@html enemy.icon}</div>
         <div class="combatant-name">{enemy.name}</div>
-        <div class="combatant-level">Lv. {enemy.level}</div>
+        <div class="combatant-level">Threat Lv. {enemy.level}</div>
         <div class="hp-bar-track">
           <div
             class="hp-bar-fill enemy-hp"
@@ -75,27 +75,27 @@
   <!-- Combat actions -->
   <div class="card">
     <div class="card-header">
-      <span class="card-icon">&#x26A1;</span>
+      <span class="card-icon">&#x1F3AF;</span>
       <h2 class="card-title">Actions</h2>
     </div>
     <div class="combat-actions">
       {#if !isBattling}
         <button class="action-btn start-btn" on:click={startBattle}>
           <span>&#x2694;&#xFE0F;</span>
-          <span>Start Battle</span>
+          <span>Engage Target</span>
         </button>
       {:else}
         <button class="action-btn attack-btn">
           <span>&#x1F5E1;&#xFE0F;</span>
-          <span>Attack</span>
+          <span>Strike</span>
         </button>
         <button class="action-btn magic-btn">
-          <span>&#x1F52E;</span>
-          <span>Cast Spell</span>
+          <span>&#x2622;&#xFE0F;</span>
+          <span>Deploy Agent</span>
         </button>
         <button class="action-btn flee-btn" on:click={fleeBattle}>
           <span>&#x1F4A8;</span>
-          <span>Flee</span>
+          <span>Fall Back</span>
         </button>
       {/if}
     </div>
@@ -104,8 +104,8 @@
   <!-- Combat log -->
   <div class="card">
     <div class="card-header">
-      <span class="card-icon">&#x1F4DC;</span>
-      <h2 class="card-title">Battle Log</h2>
+      <span class="card-icon">&#x1F4E1;</span>
+      <h2 class="card-title">Engagement Log</h2>
     </div>
     <ul class="combat-log">
       {#each combatLog as entry}
@@ -235,11 +235,11 @@
   }
 
   .player-hp {
-    background: linear-gradient(90deg, #15803d, #22c55e);
+    background: linear-gradient(90deg, #1a5a1a, #2a9e2a);
   }
 
   .enemy-hp {
-    background: linear-gradient(90deg, #b91c1c, var(--color-danger-bright));
+    background: linear-gradient(90deg, #992200, var(--color-danger-bright));
   }
 
   .hp-text {
@@ -281,13 +281,15 @@
   .start-btn {
     width: 100%;
     padding: 14px;
-    font-size: 16px;
+    font-size: 15px;
     border-color: var(--color-danger);
     color: var(--color-danger-bright);
+    letter-spacing: 1px;
+    text-transform: uppercase;
   }
 
   .start-btn:hover {
-    background-color: rgba(220, 38, 38, 0.15);
+    background-color: rgba(204, 74, 0, 0.15);
   }
 
   .attack-btn:hover {

@@ -27,6 +27,24 @@ type AuthResponse struct {
 	Email    string `json:"email"`
 }
 
+// createInitialOreInventory seeds copper and iron pivot rows for a new user
+func createInitialOreInventory(userID uint) {
+	initialOres := map[string]int{
+		"copper_ore": 5,
+		"iron_ore":   2,
+	}
+	for oreKey, qty := range initialOres {
+		var oreType database.OreType
+		if err := database.DB.Where("ore_key = ?", oreKey).First(&oreType).Error; err == nil {
+			database.DB.Create(&database.OreInventoryItem{
+				UserID:    userID,
+				OreTypeID: oreType.ID,
+				Quantity:  qty,
+			})
+		}
+	}
+}
+
 // Register creates a new user account
 func Register(c *fiber.Ctx) error {
 	req := new(RegisterRequest)
@@ -62,12 +80,7 @@ func Register(c *fiber.Ctx) error {
 	}
 
 	// Create ore inventory for new user
-	inventory := database.OreInventory{
-		UserID:    user.ID,
-		CopperOre: 5,
-		IronOre:   2,
-	}
-	database.DB.Create(&inventory)
+	createInitialOreInventory(user.ID)
 
 	// Generate JWT token
 	token, err := utils.GenerateJWT(user.ID)
@@ -153,15 +166,7 @@ func GuestLogin(c *fiber.Ctx) error {
 	}
 	
 	// Create initial ore inventory
-	inventory := database.OreInventory{
-		UserID:     user.ID,
-		CopperOre:  5,
-		IronOre:    2,
-		GoldOre:    0,
-		MithrilOre: 0,
-		DiamondOre: 0,
-	}
-	database.DB.Create(&inventory)
+	createInitialOreInventory(user.ID)
 	
 	// Generate JWT token
 	token, err := utils.GenerateJWT(user.ID)

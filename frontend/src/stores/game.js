@@ -13,20 +13,9 @@ export const player = writable({
   class: 'Apprentice Knight',
 });
 
-// Ores inventory
-export const ores = writable({
-  copperOre: 5,
-  ironOre: 2,
-  goldOre: 0,
-  mithrilOre: 0,
-  diamondOre: 0,
-});
-
-export function addOre(oreType) {
-  ores.update(function (inv) {
-    return { ...inv, [oreType]: (inv[oreType] || 0) + 1 };
-  });
-}
+// Ores inventory — dynamic map keyed by ore_key from the DB (e.g. "copper_ore")
+// Populated by syncOreInventory() — never hardcode ore keys here
+export const ores = writable({});
 
 export const activityLog = writable([
   'You have entered the Realm of Eternity...',

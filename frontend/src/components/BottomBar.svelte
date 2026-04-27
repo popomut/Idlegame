@@ -17,16 +17,16 @@
   <div class="bottom-center">
     {#if $activeMining}
       <div class="activity-status">
-        <span class="status-icon">⛏️</span>
+        <span class="status-icon">&#x26CF;&#xFE0F;</span>
         <div class="status-content">
-          <span class="status-text">Mining {$activeMining.oreName}...</span>
+          <span class="status-text">Extracting {$activeMining.oreName}...</span>
           <div class="progress-bar-small">
             <div class="progress-fill" style="width: {$miningProgress}%"></div>
           </div>
         </div>
       </div>
     {:else}
-      <span class="realm-icon">&#x2605;</span>
+      <span class="realm-icon">&#x2620;&#xFE0F;</span>
     {/if}
   </div>
 

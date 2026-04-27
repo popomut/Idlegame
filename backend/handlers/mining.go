@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"idlegame-backend/database"
 	"time"
@@ -13,20 +14,22 @@ type StartMiningRequest struct {
 
 // MiningStatusResponse returns mining progress and offline gains
 type MiningStatusResponse struct {
-	IsActive      bool              `json:"is_active"`
-	CurrentOre    *OreTypeResponse  `json:"current_ore,omitempty"`
-	StartedAt     time.Time         `json:"started_at,omitempty"`
-	OfflineGains  OfflineGainsInfo  `json:"offline_gains,omitempty"`
-	CurrentOres   map[string]int    `json:"current_ores"`
+	IsActive     bool             `json:"is_active"`
+	CurrentOre   *OreTypeResponse `json:"current_ore,omitempty"`
+	StartedAt    time.Time        `json:"started_at,omitempty"`
+	OfflineGains OfflineGainsInfo `json:"offline_gains,omitempty"`
+	CurrentOres  map[string]int   `json:"current_ores"`
 }
 
 type OreTypeResponse struct {
-	ID             uint   `json:"id"`
-	OreKey         string `json:"ore_key"`
-	OreName        string `json:"ore_name"`
-	Icon           string `json:"icon"`
-	Difficulty     string `json:"difficulty"`
-	MiningTimeMS   int    `json:"mining_time_ms"`
+	ID              uint   `json:"id"`
+	OreKey          string `json:"ore_key"`
+	OreName         string `json:"ore_name"`
+	Icon            string `json:"icon"`
+	Difficulty      string `json:"difficulty"`
+	MiningTimeMS    int    `json:"mining_time_ms"`
+	PickaxeRequired string `json:"pickaxe_required"`
+	MaxQuantity     int    `json:"max_quantity"`
 }
 
 type OfflineGainsInfo struct {
@@ -46,40 +49,36 @@ func StartMining(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
 	}
 
-	// Check if ore exists
 	var ore database.OreType
 	if err := database.DB.First(&ore, req.OreID).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "ore not found"})
 	}
 
-	// Stop any existing mining session
+	// Stop any existing active session first
 	var existingSession database.MiningSession
 	database.DB.Where("user_id = ? AND status = ?", userID, "active").First(&existingSession)
 	if existingSession.ID != 0 {
-		// Calculate and save offline gains before stopping
 		CalculateAndSaveOreGains(userID, existingSession)
 		database.DB.Model(&existingSession).Update("status", "completed")
 	}
 
-	// Start new mining session (server-side timestamp!)
 	session := database.MiningSession{
 		UserID:    userID,
 		OreID:     ore.ID,
-		StartedAt: time.Now().UTC(), // SERVER TIMESTAMP - Cannot be spoofed
+		StartedAt: time.Now().UTC(),
 		Status:    "active",
 	}
-
 	if err := database.DB.Create(&session).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to start mining"})
 	}
 
-	database.LogActivity(userID, "Started mining "+ore.OreName)
+	database.LogActivity(userID, "Started extracting "+ore.OreName)
 
 	return c.JSON(fiber.Map{
-		"status":      "mining started",
-		"session_id":  session.ID,
-		"ore_name":    ore.OreName,
-		"started_at":  session.StartedAt,
+		"status":     "mining started",
+		"session_id": session.ID,
+		"ore_name":   ore.OreName,
+		"started_at": session.StartedAt,
 	})
 }
 
@@ -87,17 +86,14 @@ func StartMining(c *fiber.Ctx) error {
 func StopMining(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 
-	// Find active session
 	var session database.MiningSession
 	result := database.DB.Where("user_id = ? AND status = ?", userID, "active").First(&session)
 	if result.Error != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "no active mining session"})
 	}
 
-	// Calculate and save ore gains
-	oredGained := CalculateAndSaveOreGains(userID, session)
+	oresGained := CalculateAndSaveOreGains(userID, session)
 
-	// End session (server-side timestamp!)
 	now := time.Now().UTC()
 	database.DB.Model(&session).Updates(map[string]interface{}{
 		"status":   "completed",
@@ -107,11 +103,11 @@ func StopMining(c *fiber.Ctx) error {
 	var ore database.OreType
 	database.DB.First(&ore, session.OreID)
 
-	database.LogActivity(userID, "Stopped mining "+ore.OreName+". Gained "+string(rune(oredGained))+" ores")
+	database.LogActivity(userID, fmt.Sprintf("Stopped extracting %s. Gained %d units.", ore.OreName, oresGained))
 
 	return c.JSON(fiber.Map{
-		"status":    "mining stopped",
-		"ores_gained": oredGained,
+		"status":     "mining stopped",
+		"ores_gained": oresGained,
 	})
 }
 
@@ -119,7 +115,6 @@ func StopMining(c *fiber.Ctx) error {
 func GetMiningStatus(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 
-	// Get current mining session
 	var session database.MiningSession
 	isActive := false
 	var ore database.OreType
@@ -130,37 +125,32 @@ func GetMiningStatus(c *fiber.Ctx) error {
 		ore = session.OreType
 	}
 
-	// Get current ore inventory
-	var inventory database.OreInventory
-	database.DB.Where("user_id = ?", userID).First(&inventory)
+	// Build current ore quantities dynamically from pivot table
+	var items []database.OreInventoryItem
+	database.DB.Where("user_id = ?", userID).Preload("OreType").Find(&items)
 
-	currentOres := map[string]int{
-		"copper_ore":   inventory.CopperOre,
-		"iron_ore":     inventory.IronOre,
-		"gold_ore":     inventory.GoldOre,
-		"mithril_ore":  inventory.MithrilOre,
-		"diamond_ore":  inventory.DiamondOre,
+	currentOres := make(map[string]int)
+	for _, item := range items {
+		currentOres[item.OreType.OreKey] = item.Quantity
 	}
 
-	// If actively mining, calculate pending earnings and add to display
+	// Add pending (unsaved) ores for the active session
 	if isActive {
 		now := time.Now().UTC()
 		elapsed := now.Sub(session.StartedAt)
 		pendingOres := int(elapsed.Milliseconds()) / ore.MiningTimeMS
-		
-		// Add pending ores to the current display (but NOT saved to DB yet)
-		switch ore.OreKey {
-		case "copper_ore":
-			currentOres["copper_ore"] += pendingOres
-		case "iron_ore":
-			currentOres["iron_ore"] += pendingOres
-		case "gold_ore":
-			currentOres["gold_ore"] += pendingOres
-		case "mithril_ore":
-			currentOres["mithril_ore"] += pendingOres
-		case "diamond_ore":
-			currentOres["diamond_ore"] += pendingOres
+
+		if ore.MaxQuantity > 0 {
+			existing := currentOres[ore.OreKey]
+			remaining := ore.MaxQuantity - existing
+			if pendingOres > remaining {
+				pendingOres = remaining
+			}
+			if pendingOres < 0 {
+				pendingOres = 0
+			}
 		}
+		currentOres[ore.OreKey] += pendingOres
 	}
 
 	response := MiningStatusResponse{
@@ -170,71 +160,65 @@ func GetMiningStatus(c *fiber.Ctx) error {
 
 	if isActive {
 		response.CurrentOre = &OreTypeResponse{
-			ID:           ore.ID,
-			OreKey:       ore.OreKey,
-			OreName:      ore.OreName,
-			Icon:         ore.Icon,
-			Difficulty:   ore.Difficulty,
-			MiningTimeMS: ore.MiningTimeMS,
+			ID:              ore.ID,
+			OreKey:          ore.OreKey,
+			OreName:         ore.OreName,
+			Icon:            ore.Icon,
+			Difficulty:      ore.Difficulty,
+			MiningTimeMS:    ore.MiningTimeMS,
+			PickaxeRequired: ore.PickaxeRequired,
+			MaxQuantity:     ore.MaxQuantity,
 		}
 		response.StartedAt = session.StartedAt
-
-		// Calculate offline gains if user had previous session
-		// (This happens when they close browser and come back)
-		offlineGains := CalculateOfflineGains(userID, session)
-		response.OfflineGains = offlineGains
+		response.OfflineGains = CalculateOfflineGains(userID, session)
 	}
 
 	return c.JSON(response)
 }
 
-// CalculateAndSaveOreGains calculates earned ores and updates inventory
-// This is SERVER-SIDE calculation - prevents cheating!
+// CalculateAndSaveOreGains calculates earned ores using server timestamps and saves to pivot table.
+// Returns the number of ores earned.
 func CalculateAndSaveOreGains(userID uint, session database.MiningSession) int {
-	// Get time elapsed using SERVER timestamps (not client)
 	now := time.Now().UTC()
 	elapsed := now.Sub(session.StartedAt)
-	
+
 	var ore database.OreType
 	database.DB.First(&ore, session.OreID)
 
-	// Calculate ores earned: elapsed_time / mining_time_per_ore
 	oresEarned := int(elapsed.Milliseconds()) / ore.MiningTimeMS
 	if oresEarned == 0 {
 		return 0
 	}
 
-	// Update inventory with earned ores (SERVER-SIDE, not client)
-	var inventory database.OreInventory
-	database.DB.Where("user_id = ?", userID).First(&inventory)
+	// Find or create the pivot row
+	var item database.OreInventoryItem
+	database.DB.FirstOrCreate(&item, database.OreInventoryItem{UserID: userID, OreTypeID: ore.ID})
 
-	// Use switch to prevent injection attacks
-	switch ore.OreKey {
-	case "copper_ore":
-		inventory.CopperOre += oresEarned
-	case "iron_ore":
-		inventory.IronOre += oresEarned
-	case "gold_ore":
-		inventory.GoldOre += oresEarned
-	case "mithril_ore":
-		inventory.MithrilOre += oresEarned
-	case "diamond_ore":
-		inventory.DiamondOre += oresEarned
+	// Apply max quantity cap
+	if ore.MaxQuantity > 0 {
+		remaining := ore.MaxQuantity - item.Quantity
+		if remaining <= 0 {
+			return 0
+		}
+		if oresEarned > remaining {
+			oresEarned = remaining
+		}
 	}
 
-	database.DB.Save(&inventory)
+	// Atomic increment
+	database.DB.Exec(
+		"UPDATE ore_inventory_items SET quantity = quantity + ?, updated_at = ? WHERE id = ?",
+		oresEarned, time.Now().UTC(), item.ID,
+	)
 
-	// Log activity
-	database.LogActivity(userID, "Mined "+string(rune(oresEarned))+" "+ore.OreName)
+	database.LogActivity(userID, fmt.Sprintf("Extracted %d %s", oresEarned, ore.OreName))
 
 	return oresEarned
 }
 
-// CalculateOfflineGains determines what player earned while offline
+// CalculateOfflineGains determines what the player earned while offline
 func CalculateOfflineGains(userID uint, session database.MiningSession) OfflineGainsInfo {
-	gains := OfflineGainsInfo{
-		WasOffline: false,
-	}
+	gains := OfflineGainsInfo{WasOffline: false}
 
 	var ore database.OreType
 	database.DB.First(&ore, session.OreID)
@@ -242,9 +226,8 @@ func CalculateOfflineGains(userID uint, session database.MiningSession) OfflineG
 
 	now := time.Now().UTC()
 	elapsed := now.Sub(session.StartedAt)
-
-	// If more than 1 ore worth of time passed, consider it offline gains
 	miningTimePerOre := time.Duration(ore.MiningTimeMS) * time.Millisecond
+
 	if elapsed > miningTimePerOre {
 		gains.WasOffline = true
 		gains.OfflineTime = elapsed.Milliseconds()

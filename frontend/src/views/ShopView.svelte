@@ -2,22 +2,22 @@
   import { player } from '../stores/game.js';
 
   const shopItems = [
-    { id: 1, name: 'Health Potion',    icon: '&#x1F9EA;', cost: 25,  desc: 'Restores 50 HP',         category: 'consumable' },
-    { id: 2, name: 'Mana Elixir',      icon: '&#x1F4A7;', cost: 30,  desc: 'Restores 25 Mana',       category: 'consumable' },
-    { id: 3, name: 'Iron Sword',       icon: '&#x1F5E1;&#xFE0F;', cost: 120, desc: '+5 Attack',       category: 'weapon' },
-    { id: 4, name: 'Leather Armor',    icon: '&#x1F9E5;', cost: 80,  desc: '+8 Defense',             category: 'armor' },
-    { id: 5, name: 'Mage Staff',       icon: '&#x1FA84;', cost: 150, desc: '+10 Magic Attack',       category: 'weapon' },
-    { id: 6, name: 'Tome of Flames',   icon: '&#x1F4D5;', cost: 200, desc: 'Learn Fireball spell',   category: 'book' },
+    { id: 1, name: 'Medkit',               icon: '&#x1F9EA;', cost: 25,  desc: 'Restores 50 Vitals',        category: 'consumable' },
+    { id: 2, name: 'Stim Injector',        icon: '&#x1F489;', cost: 30,  desc: 'Restores 25 Stims',         category: 'consumable' },
+    { id: 3, name: 'Combat Knife',         icon: '&#x1F5E1;&#xFE0F;', cost: 120, desc: '+5 Strike Power',   category: 'weapon' },
+    { id: 4, name: 'Field Vest',           icon: '&#x1F9E5;', cost: 80,  desc: '+8 Protection',             category: 'armor' },
+    { id: 5, name: 'Chemical Disperser',   icon: '&#x1FA84;', cost: 150, desc: '+10 Chemical Attack',       category: 'weapon' },
+    { id: 6, name: 'Incendiary Manual',    icon: '&#x1F4D5;', cost: 200, desc: 'Learn Incendiary Ops',      category: 'intel' },
   ];
 
   let selectedCategory = 'all';
 
   const categories = [
     { id: 'all',        label: 'All' },
-    { id: 'consumable', label: 'Potions' },
+    { id: 'consumable', label: 'Supplies' },
     { id: 'weapon',     label: 'Weapons' },
-    { id: 'armor',      label: 'Armor' },
-    { id: 'book',       label: 'Books' },
+    { id: 'armor',      label: 'Protection' },
+    { id: 'intel',      label: 'Intel' },
   ];
 
   $: filteredItems = selectedCategory === 'all'
@@ -31,13 +31,13 @@
 
 <div class="view-shop">
   <div class="page-header">
-    <h1 class="page-title">&#x1F3EA; Shop</h1>
-    <p class="page-subtitle">Spend your hard-earned gold</p>
+    <h1 class="page-title">&#x1F4B0; Black Market</h1>
+    <p class="page-subtitle">Trade your salvaged credits</p>
   </div>
 
   <div class="gold-display card">
-    <span class="gold-icon">&#x1F4B0;</span>
-    <span class="gold-label">Your Gold:</span>
+    <span class="gold-icon">&#x1FA99;</span>
+    <span class="gold-label">Credits:</span>
     <span class="gold-amount">{$player.gold}</span>
   </div>
 

@@ -1,182 +1,194 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { ores, addLogEntry } from '../stores/game.js';
-  import { activeMining, miningPopups, miningProgress, startMining, stopMining, showMiningPopup, syncMiningProgress, syncOreInventoryDuringMining } from '../stores/mining.js';
+  import {
+    activeMining, miningPopups, miningProgress,
+    startMining, stopMining, showMiningPopup,
+    syncMiningProgress, syncOreInventoryDuringMining, syncOreInventory
+  } from '../stores/mining.js';
   import { miningSyncInterval } from '../stores/config.js';
+  import { inventoryAPI } from '../services/api.js';
 
-  const oreTypes = [
-    { id: 1, storeKey: 'copperOre', name: 'Copper Ore',   icon: '🪨', color: '#b87333', difficulty: 'Easy' },
-    { id: 2, storeKey: 'ironOre',   name: 'Iron Ore',     icon: '⚫', color: '#5a5a5a', difficulty: 'Normal' },
-    { id: 3, storeKey: 'goldOre',   name: 'Gold Ore',     icon: '✨', color: '#ffd700', difficulty: 'Hard' },
-    { id: 4, storeKey: 'mithrilOre', name: 'Mithril Ore', icon: '💎', color: '#00bfff', difficulty: 'Very Hard' },
-    { id: 5, storeKey: 'diamondOre', name: 'Diamond Ore', icon: '💠', color: '#00ffff', difficulty: 'Impossible' },
-  ];
-
+  let oreTypes = [];
+  let inventoryOpen = true;
   let miningInterval = null;
   let syncInterval = null;
 
+  onMount(async function () {
+    // Load ore types from master table
+    try {
+      const resp = await inventoryAPI.getOreTypes();
+      oreTypes = resp.data;
+    } catch (e) {
+      console.error('Failed to load ore types:', e);
+    }
+
+    // Always sync inventory first to populate Material Cache
+    await syncOreInventory();
+
+    if ($activeMining) {
+      await syncOreInventoryDuringMining();
+      const ore = oreTypes.find(o => o.ID === $activeMining.oreId);
+      if (ore) {
+        startMiningPopups(ore);
+      }
+    }
+  });
+
   function startMiningPopups(ore) {
-    // Clear any existing intervals
-    if (miningInterval) {
-      clearInterval(miningInterval);
-    }
-    if (syncInterval) {
-      clearInterval(syncInterval);
-    }
-    
-    // Show popup every 2 seconds (matching mining interval)
-    // SECURITY FIX: Only show popup animation, don't increment ores locally
-    // Actual ore count comes from backend on stopMining()
+    if (miningInterval) clearInterval(miningInterval);
+    if (syncInterval) clearInterval(syncInterval);
+
+    const interval = ore.MiningTimeMS || 3000;
     miningInterval = setInterval(function () {
       showMiningPopup(1);
-    }, 2000);
+    }, interval);
 
-    // Get the current sync interval value
     let syncIntervalMs;
-    const unsubscribe = miningSyncInterval.subscribe(function (value) {
-      syncIntervalMs = value;
-    });
-    unsubscribe();
+    const unsub = miningSyncInterval.subscribe(v => { syncIntervalMs = v; });
+    unsub();
 
-    // Sync inventory at configurable interval to show live updates
     syncInterval = setInterval(async function () {
-      try {
-        await syncOreInventoryDuringMining();
-      } catch (error) {
-        console.error('Failed to sync inventory during mining:', error);
-      }
+      await syncOreInventoryDuringMining();
     }, syncIntervalMs);
   }
 
   async function handleOreClick(ore) {
     if ($activeMining) {
-      await stopMining();
+      // Save name before clearing activeMining
+      const oreName = $activeMining.oreName;
       clearInterval(miningInterval);
       clearInterval(syncInterval);
-      addLogEntry(`Stopped mining ${$activeMining.oreName}.`);
+      miningInterval = null;
+      syncInterval = null;
+      await stopMining();
+      addLogEntry(`Stopped extracting ${oreName}.`);
     } else {
-      await startMining(ore.storeKey, ore.name, ore.id);
+      await startMining(ore.ID, ore.OreName, ore.OreKey, ore.MiningTimeMS);
       startMiningPopups(ore);
     }
   }
 
-  onMount(async function () {
-    // Sync any mining progress that happened while away from this view
-    if ($activeMining) {
-      // Use the mining status endpoint to get pending earnings
-      await syncOreInventoryDuringMining();
-      
-      const ore = oreTypes.find(o => o.storeKey === $activeMining.oreType);
-      if (ore) {
-        console.log('Resuming mining popups for:', ore.name);
-        addLogEntry(`Resumed mining ${ore.name}...`);
-        startMiningPopups(ore);
-      }
-    } else {
-      // If not actively mining, still sync inventory to show latest state
-      await syncOreInventoryDuringMining();
-    }
-  });
-
-  // Watch for changes to activeMining and start/stop popups
-  $: if ($activeMining) {
-    const ore = oreTypes.find(o => o.storeKey === $activeMining.oreType);
-    if (ore && !miningInterval) {
-      console.log('Mining active, starting popups for:', ore.name);
-      startMiningPopups(ore);
-    }
-  } else {
-    // Mining stopped, clear intervals
-    if (miningInterval) {
-      clearInterval(miningInterval);
-      miningInterval = null;
-    }
-    if (syncInterval) {
-      clearInterval(syncInterval);
-      syncInterval = null;
-    }
+  // React to activeMining changes (e.g., resumed session from another tab)
+  $: if ($activeMining && !miningInterval) {
+    const ore = oreTypes.find(o => o.ID === $activeMining.oreId);
+    if (ore) startMiningPopups(ore);
+  } else if (!$activeMining) {
+    clearInterval(miningInterval);
+    clearInterval(syncInterval);
+    miningInterval = null;
+    syncInterval = null;
   }
 
   onDestroy(function () {
-    if (miningInterval) {
-      clearInterval(miningInterval);
-    }
-    if (syncInterval) {
-      clearInterval(syncInterval);
-    }
+    clearInterval(miningInterval);
+    clearInterval(syncInterval);
   });
+
+  function formatInterval(ms) {
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(0)}s`;
+  }
+
+  function pickaxeLabel(key) {
+    if (!key || key === 'none') return null;
+    return key.replace('_pickaxe', '').replace('_', ' ') + ' pickaxe';
+  }
 </script>
 
 <div class="view-mining">
   <div class="page-header">
-    <h1 class="page-title">⛏️ Mining</h1>
-    <p class="page-subtitle">Extract ores from the earth</p>
+    <h1 class="page-title">&#x26CF;&#xFE0F; Resource Extraction</h1>
+    <p class="page-subtitle">Salvage materials from contaminated zones</p>
   </div>
 
-  <!-- Ore inventory summary -->
+  <!-- Ore inventory - collapsible -->
   <div class="card inventory-card">
-    <div class="card-header">
-      <span class="card-icon">📦</span>
-      <h2 class="card-title">Ore Inventory</h2>
-    </div>
-    <div class="ore-summary">
-      {#each oreTypes as ore}
-        <div class="ore-count">
-          <span class="ore-icon">{ore.icon}</span>
-          <span class="ore-label">{ore.name}</span>
-          <span class="ore-qty">{$ores[ore.storeKey]}</span>
-        </div>
-      {/each}
-    </div>
+    <button class="card-header collapse-toggle" on:click={() => inventoryOpen = !inventoryOpen} aria-expanded={inventoryOpen}>
+      <span class="card-icon">&#x1F4E6;</span>
+      <h2 class="card-title">Material Cache</h2>
+      <span class="collapse-arrow" class:open={inventoryOpen}>&#x25B8;</span>
+    </button>
+
+    {#if inventoryOpen}
+      <div class="ore-summary">
+        {#if oreTypes.length === 0}
+          <p class="loading-text">Loading cache...</p>
+        {:else}
+          {#each oreTypes as ore}
+            <div class="ore-count">
+              <span class="ore-icon">{ore.Icon}</span>
+              <span class="ore-label">{ore.OreName}</span>
+              <span class="ore-qty">{$ores[ore.OreKey] ?? 0}</span>
+              {#if ore.MaxQuantity > 0}
+                <span class="ore-max">/ {ore.MaxQuantity}</span>
+              {/if}
+            </div>
+          {/each}
+        {/if}
+      </div>
+    {/if}
   </div>
 
   <!-- Mining area -->
   <div class="card mining-card">
     <div class="card-header">
-      <span class="card-icon">⛏️</span>
+      <span class="card-icon">&#x26CF;&#xFE0F;</span>
       <h2 class="card-title">
         {#if $activeMining}
-          Mining: {$activeMining.oreName}
+          Extracting: {$activeMining.oreName}
         {:else}
-          Select an Ore to Mine
+          Select Extraction Target
         {/if}
       </h2>
     </div>
 
     <div class="ore-selection">
-      {#each oreTypes as ore}
-        <button
-          class="ore-btn"
-          class:active={$activeMining?.oreType === ore.storeKey}
-          on:click={() => handleOreClick(ore)}
-        >
-          <div class="ore-btn-icon">{ore.icon}</div>
-          <div class="ore-btn-info">
-            <div class="ore-btn-name">{ore.name}</div>
-            <div class="ore-btn-difficulty">{ore.difficulty}</div>
-          </div>
-          <div class="ore-btn-status">
-            {#if $activeMining?.oreType === ore.storeKey}
-              <span class="mining-indicator">⏱️</span>
-            {:else}
-              <span class="ore-btn-qty">{$ores[ore.storeKey]}</span>
-            {/if}
-          </div>
-        </button>
-      {/each}
+      {#if oreTypes.length === 0}
+        <p class="loading-text">Loading extraction targets...</p>
+      {:else}
+        {#each oreTypes as ore}
+          {@const isActive = $activeMining?.oreKey === ore.OreKey}
+          {@const pickaxe = pickaxeLabel(ore.PickaxeRequired)}
+          <button
+            class="ore-btn"
+            class:active={isActive}
+            on:click={() => handleOreClick(ore)}
+          >
+            <div class="ore-btn-icon">{ore.Icon}</div>
+            <div class="ore-btn-info">
+              <div class="ore-btn-name">{ore.OreName}</div>
+              <div class="ore-btn-meta">
+                <span class="badge difficulty">{ore.Difficulty}</span>
+                <span class="badge interval">&#x23F3; {formatInterval(ore.MiningTimeMS)}</span>
+                {#if pickaxe}
+                  <span class="badge pickaxe">&#x26CF; {pickaxe}</span>
+                {/if}
+              </div>
+            </div>
+            <div class="ore-btn-status">
+              {#if isActive}
+                <span class="mining-indicator">&#x23F1;&#xFE0F;</span>
+              {:else}
+                <span class="ore-btn-qty">{$ores[ore.OreKey] ?? 0}</span>
+              {/if}
+            </div>
+          </button>
+        {/each}
+      {/if}
     </div>
 
     {#if $activeMining}
       <div class="mining-info">
-        <p class="mining-text">Mining 1 ore every 2 seconds...</p>
-        
+        <p class="mining-text">Extracting 1 unit every {formatInterval($activeMining.miningTimeMS)}...</p>
+
         <div class="progress-bar-container">
           <div class="progress-bar" style="width: {$miningProgress}%"></div>
         </div>
         <p class="progress-text">{Math.round($miningProgress)}%</p>
-        
+
         <button class="stop-btn" on:click={() => handleOreClick(null)}>
-          Stop Mining
+          Abort Extraction
         </button>
       </div>
     {/if}
@@ -199,9 +211,7 @@
     max-width: 760px;
   }
 
-  .page-header {
-    padding: 8px 0 4px;
-  }
+  .page-header { padding: 8px 0 4px; }
 
   .page-title {
     font-family: var(--font-heading);
@@ -233,9 +243,18 @@
     margin-bottom: 14px;
   }
 
-  .card-icon {
-    font-size: 18px;
+  .collapse-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 14px;
+    font-family: var(--font-body);
   }
+
+  .card-icon { font-size: 18px; }
 
   .card-title {
     font-family: var(--font-heading);
@@ -244,12 +263,22 @@
     margin: 0;
     font-weight: 600;
     flex: 1;
+    text-align: left;
   }
 
-  /* Inventory card */
-  .inventory-card {
-    border-color: var(--color-gold-dim);
+  .collapse-arrow {
+    font-size: 14px;
+    color: var(--color-text-muted);
+    display: inline-block;
+    transform: rotate(0deg);
+    transition: transform 0.2s;
   }
+
+  .collapse-arrow.open {
+    transform: rotate(90deg);
+  }
+
+  .inventory-card { border-color: var(--color-gold-dim); }
 
   .ore-summary {
     display: grid;
@@ -267,34 +296,15 @@
     border-radius: 8px;
   }
 
-  .ore-icon {
-    font-size: 18px;
-    width: 24px;
-    text-align: center;
-  }
+  .ore-icon { font-size: 18px; width: 24px; text-align: center; }
 
-  .ore-label {
-    font-size: 13px;
-    color: var(--color-text-muted);
-    flex: 1;
-  }
+  .ore-label { font-size: 13px; color: var(--color-text-muted); flex: 1; }
 
-  .ore-qty {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-gold);
-  }
+  .ore-qty { font-size: 14px; font-weight: 600; color: var(--color-gold); }
 
-  /* Mining card */
-  .mining-card {
-    border-color: var(--color-border);
-  }
+  .ore-max { font-size: 11px; color: var(--color-text-dim); }
 
-  .ore-selection {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+  .ore-selection { display: flex; flex-direction: column; gap: 8px; }
 
   .ore-btn {
     display: flex;
@@ -321,51 +331,55 @@
     border-color: var(--color-gold-dim);
   }
 
-  .ore-btn-icon {
-    font-size: 28px;
-    width: 32px;
-    flex-shrink: 0;
-  }
+  .ore-btn-icon { font-size: 28px; width: 32px; flex-shrink: 0; }
 
-  .ore-btn-info {
-    flex: 1;
-    min-width: 0;
-  }
+  .ore-btn-info { flex: 1; min-width: 0; }
 
   .ore-btn-name {
     font-size: 14px;
     font-weight: 600;
     color: var(--color-text-heading);
-    margin-bottom: 2px;
+    margin-bottom: 4px;
   }
 
-  .ore-btn-difficulty {
-    font-size: 12px;
-    color: var(--color-text-muted);
+  .ore-btn-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .badge {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
   }
 
-  .ore-btn-status {
-    flex-shrink: 0;
+  .badge.difficulty {
+    background-color: rgba(42, 158, 42, 0.15);
+    color: var(--color-hazard);
+    border: 1px solid rgba(42, 158, 42, 0.3);
   }
 
-  .ore-btn-qty {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-gold);
+  .badge.interval {
+    background-color: rgba(200, 168, 75, 0.1);
+    color: var(--color-gold-dim);
+    border: 1px solid rgba(200, 168, 75, 0.2);
   }
 
-  .mining-indicator {
-    font-size: 16px;
-    animation: pulse 1s infinite;
+  .badge.pickaxe {
+    background-color: rgba(204, 74, 0, 0.12);
+    color: var(--color-danger-bright);
+    border: 1px solid rgba(204, 74, 0, 0.25);
   }
+
+  .ore-btn-status { flex-shrink: 0; }
+
+  .ore-btn-qty { font-size: 14px; font-weight: 600; color: var(--color-gold); }
+
+  .mining-indicator { font-size: 16px; animation: pulse 1s infinite; }
 
   @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.5;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
   }
 
   .mining-info {
@@ -379,6 +393,8 @@
     font-size: 14px;
     color: var(--color-magic-bright);
     margin-bottom: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
   }
 
   .progress-bar-container {
@@ -395,16 +411,9 @@
     height: 100%;
     background: linear-gradient(90deg, var(--color-magic-bright), var(--color-gold-bright));
     transition: width 0.05s linear;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
-  .progress-text {
-    font-size: 12px;
-    color: var(--color-text-muted);
-    margin-bottom: 12px;
-  }
+  .progress-text { font-size: 12px; color: var(--color-text-muted); margin-bottom: 12px; }
 
   .stop-btn {
     padding: 8px 20px;
@@ -419,11 +428,10 @@
     transition: background-color var(--transition-fast);
   }
 
-  .stop-btn:hover {
-    background-color: rgba(220, 38, 38, 0.25);
-  }
+  .stop-btn:hover { background-color: rgba(220, 38, 38, 0.25); }
 
-  /* Mining popups */
+  .loading-text { color: var(--color-text-muted); font-size: 13px; }
+
   .mining-popups {
     position: fixed;
     bottom: calc(var(--bottombar-height) + 30px);
@@ -448,13 +456,7 @@
   }
 
   @keyframes popup-float {
-    0% {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-    100% {
-      opacity: 0;
-      transform: translateY(-30px) scale(1.1);
-    }
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-30px) scale(1.1); }
   }
 </style>

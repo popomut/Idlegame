@@ -1,13 +1,13 @@
 <script>
   const achievements = [
-    { id: 1, name: 'First Steps',       icon: '&#x1F463;', desc: 'Begin your adventure',          unlocked: true  },
-    { id: 2, name: 'Blood and Steel',   icon: '&#x2694;&#xFE0F;', desc: 'Win your first battle',   unlocked: true  },
-    { id: 3, name: 'Scholar',           icon: '&#x1F4D6;', desc: 'Learn your first spell',         unlocked: false },
-    { id: 4, name: 'Merchant',          icon: '&#x1F3EA;', desc: 'Buy an item from the shop',      unlocked: false },
-    { id: 5, name: 'Dragon Slayer',     icon: '&#x1F409;', desc: 'Defeat a dragon',                unlocked: false },
-    { id: 6, name: 'Devil\'s Bargain',  icon: '&#x1F608;', desc: 'Survive an encounter with evil', unlocked: false },
-    { id: 7, name: 'Knight\'s Honor',   icon: '&#x1F6E1;&#xFE0F;', desc: 'Reach Level 10',         unlocked: false },
-    { id: 8, name: 'Archmage',          icon: '&#x2728;',  desc: 'Reach Magic skill level 50',     unlocked: false },
+    { id: 1, name: 'First Deployment',      icon: '&#x1F463;', desc: 'Begin your first mission',              unlocked: true  },
+    { id: 2, name: 'First Blood',           icon: '&#x2694;&#xFE0F;', desc: 'Neutralize your first target',   unlocked: true  },
+    { id: 3, name: 'Tactician',             icon: '&#x1F4CB;', desc: 'Develop your first combat strategy',    unlocked: false },
+    { id: 4, name: 'Black Market Contact',  icon: '&#x1F4B0;', desc: 'Complete a black market deal',          unlocked: false },
+    { id: 5, name: 'High-Value Target',     icon: '&#x1F3AF;', desc: 'Eliminate a high-value target',         unlocked: false },
+    { id: 6, name: 'Rogue Operation',       icon: '&#x2620;&#xFE0F;', desc: 'Survive an unauthorized mission',unlocked: false },
+    { id: 7, name: 'Officer Rank',          icon: '&#x1F396;&#xFE0F;', desc: 'Reach Rank 10',                 unlocked: false },
+    { id: 8, name: 'Chemical Expert',       icon: '&#x2622;&#xFE0F;', desc: 'Master Chemical Warfare Lv. 50', unlocked: false },
   ];
 
   $: unlockedCount = achievements.filter(function (a) { return a.unlocked; }).length;
@@ -15,8 +15,8 @@
 
 <div class="view-achievements">
   <div class="page-header">
-    <h1 class="page-title">&#x1F3C6; Achievements</h1>
-    <p class="page-subtitle">{unlockedCount} / {achievements.length} unlocked</p>
+    <h1 class="page-title">&#x1F396;&#xFE0F; Commendations</h1>
+    <p class="page-subtitle">{unlockedCount} / {achievements.length} earned</p>
   </div>
 
   <div class="card">
