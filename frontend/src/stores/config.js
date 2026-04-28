@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 
 // Mining configuration
-export const miningSyncInterval = writable(5000); // Default: 5 seconds in milliseconds
+export const miningSyncInterval = writable(15000); // 15 seconds
 
 // Load config from localStorage on startup
 export function loadConfigFromStorage() {

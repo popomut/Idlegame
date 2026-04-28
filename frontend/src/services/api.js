@@ -59,3 +59,7 @@ export const userAPI = {
   updateUser: (playerName, playerClass) =>
     api.post('/user/update', { player_name: playerName, player_class: playerClass }),
 };
+
+export const characterAPI = {
+  getCharacter: () => api.get('/character'),
+};

@@ -2,69 +2,78 @@
   import { player, activityLog } from '../stores/game.js';
   import { navigateTo } from '../stores/navigation.js';
 
-  function getHpPercent(hp, maxHp) {
-    return Math.round((hp / maxHp) * 100);
-  }
-
-  function getManaPercent(mana, maxMana) {
-    return Math.round((mana / maxMana) * 100);
-  }
-
-  function getXpPercent(xp, xpToNextLevel) {
-    return Math.round((xp / xpToNextLevel) * 100);
+  function pct(val, max) {
+    if (!max) return 0;
+    return Math.min(100, Math.round((val / max) * 100));
   }
 </script>
 
 <div class="view-home">
-  <!-- Page header -->
   <div class="page-header">
-    <h1 class="page-title">&#x1FA96; OPERATIVE, {$player.name}</h1>
+    <h1 class="page-title">&#x1FA96; OPERATIVE: {$player.name}</h1>
     <p class="page-subtitle">{$player.class}</p>
   </div>
 
-  <!-- Character card -->
+  <!-- Operator Profile card -->
   <div class="card character-card">
     <div class="card-header">
       <span class="card-icon">&#x1FA96;</span>
       <h2 class="card-title">Operator Profile</h2>
-      <span class="level-tag">Rank {$player.level}</span>
+      <span class="level-tag">RANK {$player.level}</span>
     </div>
 
     <div class="stat-bars">
-      <!-- XP bar -->
+      <!-- XP -->
       <div class="stat-row">
         <span class="stat-label">&#x1F3AF; EXP</span>
         <div class="stat-bar-track">
-          <div
-            class="stat-bar-fill xp-fill"
-            style="width: {getXpPercent($player.xp, $player.xpToNextLevel)}%"
-          ></div>
+          <div class="stat-bar-fill xp-fill" style="width: {pct($player.xp, $player.xpRequired)}%"></div>
         </div>
-        <span class="stat-value">{$player.xp} / {$player.xpToNextLevel}</span>
+        <span class="stat-value">{$player.xp} / {$player.xpRequired}</span>
       </div>
 
-      <!-- HP bar -->
+      <!-- HP -->
       <div class="stat-row">
         <span class="stat-label">&#x1FA79; VITALS</span>
         <div class="stat-bar-track">
-          <div
-            class="stat-bar-fill hp-fill"
-            style="width: {getHpPercent($player.hp, $player.maxHp)}%"
-          ></div>
+          <div class="stat-bar-fill hp-fill" style="width: {pct($player.hp, $player.maxHp)}%"></div>
         </div>
         <span class="stat-value">{$player.hp} / {$player.maxHp}</span>
       </div>
 
-      <!-- Mana/Stims bar -->
+      <!-- Stamina -->
       <div class="stat-row">
-        <span class="stat-label">&#x1F489; STIMS</span>
+        <span class="stat-label">&#x26A1; STAMINA</span>
         <div class="stat-bar-track">
-          <div
-            class="stat-bar-fill mana-fill"
-            style="width: {getManaPercent($player.mana, $player.maxMana)}%"
-          ></div>
+          <div class="stat-bar-fill stamina-fill" style="width: {pct($player.stamina, $player.maxStamina)}%"></div>
         </div>
-        <span class="stat-value">{$player.mana} / {$player.maxMana}</span>
+        <span class="stat-value">{$player.stamina} / {$player.maxStamina}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Combat stats card -->
+  <div class="card stats-card">
+    <div class="card-header">
+      <span class="card-icon">&#x2694;&#xFE0F;</span>
+      <h2 class="card-title">Operator Stats</h2>
+      <span class="money-tag">&#x1F4B0; {$player.money}</span>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <span class="stat-box-icon">&#x1F4AA;</span>
+        <span class="stat-box-label">STR</span>
+        <span class="stat-box-value">{$player.str}</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-box-icon">&#x1F9E0;</span>
+        <span class="stat-box-label">INT</span>
+        <span class="stat-box-value">{$player.int}</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-box-icon">&#x1F3AF;</span>
+        <span class="stat-box-label">DEX</span>
+        <span class="stat-box-value">{$player.dex}</span>
       </div>
     </div>
   </div>
@@ -121,9 +130,7 @@
     max-width: 760px;
   }
 
-  .page-header {
-    padding: 8px 0 4px;
-  }
+  .page-header { padding: 8px 0 4px; }
 
   .page-title {
     font-family: var(--font-heading);
@@ -155,9 +162,7 @@
     margin-bottom: 14px;
   }
 
-  .card-icon {
-    font-size: 18px;
-  }
+  .card-icon { font-size: 18px; }
 
   .card-title {
     font-family: var(--font-heading);
@@ -176,6 +181,14 @@
     border: 1px solid var(--color-gold-dim);
     padding: 2px 8px;
     border-radius: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .money-tag {
+    font-size: 13px;
+    color: var(--color-gold);
+    font-weight: 600;
   }
 
   /* Stat bars */
@@ -192,10 +205,12 @@
   }
 
   .stat-label {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--color-text-muted);
-    width: 64px;
+    width: 72px;
     flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   .stat-bar-track {
@@ -213,24 +228,52 @@
     transition: width 0.4s ease;
   }
 
-  .xp-fill {
-    background: linear-gradient(90deg, var(--color-gold-dim), var(--color-gold));
-  }
-
-  .hp-fill {
-    background: linear-gradient(90deg, #1a5a1a, #2a9e2a);
-  }
-
-  .mana-fill {
-    background: linear-gradient(90deg, var(--color-magic), var(--color-magic-bright));
-  }
+  .xp-fill { background: linear-gradient(90deg, var(--color-gold-dim), var(--color-gold)); }
+  .hp-fill  { background: linear-gradient(90deg, #1a5a1a, #2a9e2a); }
+  .stamina-fill { background: linear-gradient(90deg, var(--color-magic), var(--color-magic-bright)); }
 
   .stat-value {
     font-size: 12px;
     color: var(--color-text-muted);
-    width: 70px;
+    width: 78px;
     text-align: right;
     flex-shrink: 0;
+  }
+
+  /* Combat stats grid */
+  .stats-card { border-color: var(--color-border); }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 8px;
+    background-color: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+  }
+
+  .stat-box-icon { font-size: 20px; }
+
+  .stat-box-label {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .stat-box-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text-heading);
+    font-family: var(--font-heading);
   }
 
   /* Quick actions */
@@ -257,29 +300,12 @@
     transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
   }
 
-  .action-btn:hover {
-    background-color: var(--color-bg-hover);
-    border-color: var(--color-text-muted);
-  }
+  .action-btn:hover { background-color: var(--color-bg-hover); border-color: var(--color-text-muted); }
+  .danger-btn:hover { border-color: var(--color-danger); color: var(--color-danger-bright); }
+  .magic-btn:hover  { border-color: var(--color-magic); color: var(--color-magic-bright); }
+  .gold-btn:hover   { border-color: var(--color-gold-dim); color: var(--color-gold); }
 
-  .danger-btn:hover {
-    border-color: var(--color-danger);
-    color: var(--color-danger-bright);
-  }
-
-  .magic-btn:hover {
-    border-color: var(--color-magic);
-    color: var(--color-magic-bright);
-  }
-
-  .gold-btn:hover {
-    border-color: var(--color-gold-dim);
-    color: var(--color-gold);
-  }
-
-  .action-icon {
-    font-size: 18px;
-  }
+  .action-icon { font-size: 18px; }
 
   /* Activity log */
   .activity-log {

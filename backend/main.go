@@ -38,7 +38,8 @@ func main() {
         app.Post("/api/auth/login", handlers.Login)
         app.Post("/api/auth/guest", handlers.GuestLogin)
         app.Post("/api/auth/logout", handlers.Logout)
-        app.Get("/api/ore-types", handlers.GetOreTypes) // Master table — public
+        app.Get("/api/ore-types", handlers.GetOreTypes)      // Master table — public
+        app.Get("/api/monsters", handlers.GetMonsters)           // Monster master table — public
 
         // Protected routes (require JWT token)
         api := app.Group("/api", middleware.AuthMiddleware())
@@ -46,6 +47,9 @@ func main() {
         // User routes
         api.Get("/user", handlers.GetUser)
         api.Post("/user/update", handlers.UpdateUser)
+
+        // Character routes
+        api.Get("/character", handlers.GetCharacter)
 
         // Mining routes
         api.Post("/mining/start", handlers.StartMining)
@@ -60,3 +64,4 @@ func main() {
         fmt.Printf("🚀 Server running on http://0.0.0.0:%d\n", port)
         log.Fatal(app.Listen(fmt.Sprintf("0.0.0.0:%d", port)))
 }
+

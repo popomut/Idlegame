@@ -6,27 +6,46 @@ import (
 
 // User represents a player account
 type User struct {
-	ID        uint   `gorm:"primaryKey"`
-	Username  string `gorm:"uniqueIndex;not null"`
-	Email     string `gorm:"uniqueIndex;not null"`
-	Password  string `gorm:"not null"`
-	IsGuest   bool   `gorm:"default:false"`
-	
-	// Player stats
-	PlayerName    string `gorm:"default:'Hero'"`
-	PlayerClass   string `gorm:"default:'Apprentice Knight'"`
-	Level         int    `gorm:"default:1"`
-	XP            int64  `gorm:"default:0"`
-	XPToNextLevel int    `gorm:"default:100"`
-	
-	Gold   int64 `gorm:"default:150"`
-	HP     int   `gorm:"default:100"`
-	MaxHP  int   `gorm:"default:100"`
-	Mana   int   `gorm:"default:50"`
-	MaxMana int  `gorm:"default:50"`
-	
+	ID       uint   `gorm:"primaryKey"`
+	Username string `gorm:"uniqueIndex;not null"`
+	Email    string `gorm:"uniqueIndex;not null"`
+	Password string `gorm:"not null"`
+	IsGuest  bool   `gorm:"default:false"`
+
+	// Identity
+	PlayerName  string `gorm:"default:'Operative'"`
+	PlayerClass string `gorm:"default:'Recruit'"`
+
+	// Progression
+	Level int   `gorm:"default:1"`
+	XP    int64 `gorm:"default:0"`
+
+	// Base stats — updated on level-up from CharacterLevel table
+	HP         int `gorm:"default:100"`
+	MaxHP      int `gorm:"default:100"`
+	Stamina    int `gorm:"default:50"`
+	MaxStamina int `gorm:"default:50"`
+	Str        int `gorm:"default:5"`
+	Int        int `gorm:"default:5"`
+	Dex        int `gorm:"default:5"`
+
+	// Currency
+	Money int64 `gorm:"default:0"`
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+// CharacterLevel defines XP required and stat bonuses per level.
+// Add rows to this table to extend the level cap — no code changes needed.
+type CharacterLevel struct {
+	Level       int `gorm:"primaryKey"` // 1, 2, 3, ...
+	XPRequired  int64 `gorm:"not null"` // total XP needed to reach this level
+	MaxHP       int `gorm:"default:100"`
+	MaxStamina  int `gorm:"default:50"`
+	Str         int `gorm:"default:5"`
+	Int         int `gorm:"default:5"`
+	Dex         int `gorm:"default:5"`
 }
 
 // OreInventory stores player's ore counts
@@ -93,6 +112,56 @@ type MiningSession struct {
 	Status      string `gorm:"default:'active';index"`
 	
 	CreatedAt   time.Time
+}
+
+// Monster defines enemy stats — add rows to this table to add new monsters with no code changes.
+// Attack types: physical, fire, lightning, ice, poison, chaos
+// Resistances: 0 = no resistance, 100 = full immunity
+type Monster struct {
+	ID          uint   `gorm:"primaryKey"`
+	MonsterKey  string `gorm:"uniqueIndex;not null"` // e.g. "wasteland_scavenger"
+	Name        string `gorm:"not null"`
+	Icon        string
+	Description string
+
+	// Combat stats
+	HP          int    `gorm:"default:50"`
+	DEX         int    `gorm:"default:1"`
+	AttackType  string `gorm:"default:'physical'"` // physical, fire, lightning, ice, poison, chaos
+	AttackValue int    `gorm:"default:5"`
+	PhysDef     int    `gorm:"default:0"` // flat physical damage reduction
+
+	// Elemental resistances (0–100 percent)
+	ResistFire      int `gorm:"default:0"`
+	ResistLightning int `gorm:"default:0"`
+	ResistIce       int `gorm:"default:0"`
+	ResistPoison    int `gorm:"default:0"`
+	ResistChaos     int `gorm:"default:0"`
+
+	// Rewards
+	MoneyDropMin int `gorm:"default:0"`
+	MoneyDropMax int `gorm:"default:0"`
+	XPDrop       int `gorm:"default:5"`
+
+	SortOrder int `gorm:"default:0"` // display/spawn order
+
+	CreatedAt time.Time
+}
+
+// MonsterDrop defines loot table entries for a monster.
+// DropType: "item" or "equipment". DropKey references the item/equipment master key.
+// DropRate: 0.0 (never) to 1.0 (always).
+type MonsterDrop struct {
+	ID         uint    `gorm:"primaryKey"`
+	MonsterID  uint    `gorm:"not null;index"`
+	Monster    Monster `gorm:"foreignKey:MonsterID"`
+	DropType   string  `gorm:"not null"` // "item" or "equipment"
+	DropKey    string  `gorm:"not null"` // references item_key or equipment_key
+	DropRate   float64 `gorm:"default:0.1"` // probability 0.0–1.0
+	DropMin    int     `gorm:"default:1"`   // min quantity (for stackable items)
+	DropMax    int     `gorm:"default:1"`   // max quantity
+
+	CreatedAt time.Time
 }
 
 // ActivityLog stores player actions

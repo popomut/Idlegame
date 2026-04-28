@@ -6,6 +6,7 @@
   import { initMiningStatus } from './stores/mining.js';
   import { loadConfigFromStorage } from './stores/config.js';
   import { theme } from './stores/theme.js';
+  import { syncCharacter } from './stores/game.js';
 
   import TopBar from './components/TopBar.svelte';
   import Sidebar from './components/Sidebar.svelte';
@@ -37,7 +38,8 @@
     const hasAuth = await loadAuthFromStorage();
     
     if (hasAuth) {
-      // Check mining status on app load
+      // Load character stats and mining status on app load
+      await syncCharacter();
       await initMiningStatus();
     }
   });

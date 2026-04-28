@@ -32,8 +32,20 @@ func Init() error {
 		return err
 	}
 
+	// Seed character levels
+	err = seedCharacterLevels()
+	if err != nil {
+		return err
+	}
+
 	// Migrate legacy flat OreInventory rows to new pivot table
 	err = migrateOreInventoryToItems()
+	if err != nil {
+		return err
+	}
+
+	// Seed monsters
+	err = seedMonsters()
 	if err != nil {
 		return err
 	}
@@ -44,10 +56,13 @@ func Init() error {
 func migrate() error {
 	return DB.AutoMigrate(
 		&User{},
+		&CharacterLevel{},   // level master table
 		&OreInventory{},     // kept for backward-compat / migration source
 		&OreInventoryItem{}, // new pivot table
 		&OreType{},
 		&MiningSession{},
+		&Monster{},
+		&MonsterDrop{},
 		&ActivityLog{},
 	)
 }
@@ -185,6 +200,151 @@ func migrateOreInventoryToItems() error {
 				}
 				DB.Create(&item)
 			}
+		}
+	}
+	return nil
+}
+
+// seedCharacterLevels upserts the level progression table.
+// Formula: XP(n) = 100 * n^1.6  (exponential curve)
+// Stats grow steadily: HP +10/level, Stamina +5/level, Str/Int/Dex +1 every 5 levels
+func seedCharacterLevels() error {
+	for lvl := 1; lvl <= 100; lvl++ {
+		xpRequired := int64(float64(100) * float64(lvl*lvl) * 0.8)
+		if lvl == 1 {
+			xpRequired = 0 // Level 1 is the starting level
+		}
+
+		maxHP := 100 + (lvl-1)*10
+		maxStamina := 50 + (lvl-1)*5
+		str := 5 + (lvl-1)/5
+		intStat := 5 + (lvl-1)/5
+		dex := 5 + (lvl-1)/5
+
+		cl := CharacterLevel{
+			Level:      lvl,
+			XPRequired: xpRequired,
+			MaxHP:      maxHP,
+			MaxStamina: maxStamina,
+			Str:        str,
+			Int:        intStat,
+			Dex:        dex,
+		}
+
+		var existing CharacterLevel
+		if err := DB.First(&existing, lvl).Error; err != nil {
+			DB.Create(&cl)
+		} else {
+			DB.Save(&cl)
+		}
+	}
+	return nil
+}
+
+// seedMonsters upserts the 10 base monsters into the master table.
+// To add a new monster: INSERT a row here — no code changes on frontend or backend needed.
+func seedMonsters() error {
+	monsters := []Monster{
+		{
+			MonsterKey:  "wasteland_scavenger",
+			Name:        "Wasteland Scavenger",
+			Icon:        "🧟",
+			Description: "A desperate survivor picking through ruins. Weak but unpredictable.",
+			HP: 40, DEX: 1, AttackType: "physical", AttackValue: 4, PhysDef: 0,
+			MoneyDropMin: 1, MoneyDropMax: 5, XPDrop: 8, SortOrder: 1,
+		},
+		{
+			MonsterKey:  "rad_rat",
+			Name:        "Rad Rat",
+			Icon:        "🐀",
+			Description: "A rodent bloated by radiation. Its bite carries a toxic sting.",
+			HP: 25, DEX: 3, AttackType: "poison", AttackValue: 3, PhysDef: 0,
+			ResistPoison: 50,
+			MoneyDropMin: 0, MoneyDropMax: 2, XPDrop: 6, SortOrder: 2,
+		},
+		{
+			MonsterKey:  "toxic_crawler",
+			Name:        "Toxic Crawler",
+			Icon:        "🦂",
+			Description: "An irradiated insect that secretes corrosive venom.",
+			HP: 35, DEX: 2, AttackType: "poison", AttackValue: 6, PhysDef: 2,
+			ResistPoison: 75,
+			MoneyDropMin: 0, MoneyDropMax: 3, XPDrop: 10, SortOrder: 3,
+		},
+		{
+			MonsterKey:  "rust_golem",
+			Name:        "Rust Golem",
+			Icon:        "🤖",
+			Description: "A war machine left to corrode. Slow but nearly impenetrable.",
+			HP: 120, DEX: 1, AttackType: "physical", AttackValue: 10, PhysDef: 8,
+			ResistFire: 20, ResistLightning: 30,
+			MoneyDropMin: 5, MoneyDropMax: 15, XPDrop: 20, SortOrder: 4,
+		},
+		{
+			MonsterKey:  "chem_soldier",
+			Name:        "Chem Soldier",
+			Icon:        "☣️",
+			Description: "A surviving soldier who weaponised chemical agents against all living things.",
+			HP: 70, DEX: 2, AttackType: "fire", AttackValue: 8, PhysDef: 3,
+			ResistFire: 40, ResistPoison: 20,
+			MoneyDropMin: 8, MoneyDropMax: 20, XPDrop: 18, SortOrder: 5,
+		},
+		{
+			MonsterKey:  "irradiated_hound",
+			Name:        "Irradiated Hound",
+			Icon:        "🐺",
+			Description: "A wolf twisted by fallout. Faster than anything in the wastes.",
+			HP: 55, DEX: 4, AttackType: "physical", AttackValue: 7, PhysDef: 1,
+			ResistPoison: 25,
+			MoneyDropMin: 2, MoneyDropMax: 8, XPDrop: 14, SortOrder: 6,
+		},
+		{
+			MonsterKey:  "gas_mask_raider",
+			Name:        "Gas Mask Raider",
+			Icon:        "💀",
+			Description: "An armed looter hiding behind salvaged gear. Carries crude explosives.",
+			HP: 80, DEX: 2, AttackType: "fire", AttackValue: 9, PhysDef: 4,
+			ResistFire: 15,
+			MoneyDropMin: 10, MoneyDropMax: 30, XPDrop: 22, SortOrder: 7,
+		},
+		{
+			MonsterKey:  "biohazard_slime",
+			Name:        "Biohazard Slime",
+			Icon:        "🟢",
+			Description: "A gelatinous mass of mutated organic matter. Cold and corrosive to the touch.",
+			HP: 60, DEX: 1, AttackType: "ice", AttackValue: 7, PhysDef: 0,
+			ResistIce: 80, ResistPoison: 50, ResistFire: -20,
+			MoneyDropMin: 0, MoneyDropMax: 5, XPDrop: 15, SortOrder: 8,
+		},
+		{
+			MonsterKey:  "war_drone",
+			Name:        "War Drone",
+			Icon:        "🚁",
+			Description: "An autonomous combat UAV still running its kill protocol.",
+			HP: 90, DEX: 3, AttackType: "lightning", AttackValue: 11, PhysDef: 5,
+			ResistLightning: 50, ResistFire: 10,
+			MoneyDropMin: 15, MoneyDropMax: 40, XPDrop: 28, SortOrder: 9,
+		},
+		{
+			MonsterKey:  "mutant_brute",
+			Name:        "Mutant Brute",
+			Icon:        "👹",
+			Description: "A hulking mass of mutated muscle. The apex predator of the wastelands.",
+			HP: 200, DEX: 1, AttackType: "physical", AttackValue: 18, PhysDef: 10,
+			ResistPoison: 30, ResistChaos: 20,
+			MoneyDropMin: 20, MoneyDropMax: 60, XPDrop: 45, SortOrder: 10,
+		},
+	}
+
+	for _, m := range monsters {
+		var existing Monster
+		result := DB.Where("monster_key = ?", m.MonsterKey).First(&existing)
+		if result.Error != nil {
+			DB.Create(&m)
+		} else {
+			m.ID = existing.ID
+			m.CreatedAt = existing.CreatedAt
+			DB.Save(&m)
 		}
 	}
 	return nil

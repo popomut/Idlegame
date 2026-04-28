@@ -13,6 +13,8 @@
   let inventoryOpen = true;
   let miningInterval = null;
   let syncInterval = null;
+  // Tracks local ore gains between server syncs — Svelte tracks let assignments directly
+  let pendingOres = {};
 
   onMount(async function () {
     // Load ore types from master table
@@ -40,7 +42,20 @@
     if (syncInterval) clearInterval(syncInterval);
 
     const interval = ore.MiningTimeMS || 3000;
+    const oreKey = ore.OreKey;
+    const maxQty = ore.MaxQuantity || 0;
+
+    // Reset pending on new session so display starts clean
+    pendingOres = {};
+
     miningInterval = setInterval(function () {
+      // Check cap against base (server) + pending
+      const base = ($ores[oreKey] || 0);
+      const pending = (pendingOres[oreKey] || 0);
+      if (maxQty > 0 && base + pending >= maxQty) return;
+
+      // Svelte tracks let variable assignments — this reliably triggers re-render
+      pendingOres = { ...pendingOres, [oreKey]: pending + 1 };
       showMiningPopup(1);
     }, interval);
 
@@ -48,8 +63,10 @@
     const unsub = miningSyncInterval.subscribe(v => { syncIntervalMs = v; });
     unsub();
 
+    // Sync with server every 15s — reset pending since server now has the real count
     syncInterval = setInterval(async function () {
       await syncOreInventoryDuringMining();
+      pendingOres = {};
     }, syncIntervalMs);
   }
 
@@ -61,9 +78,11 @@
       clearInterval(syncInterval);
       miningInterval = null;
       syncInterval = null;
+      pendingOres = {};
       await stopMining();
       addLogEntry(`Stopped extracting ${oreName}.`);
     } else {
+      pendingOres = {};
       await startMining(ore.ID, ore.OreName, ore.OreKey, ore.MiningTimeMS);
       startMiningPopups(ore);
     }
@@ -119,7 +138,7 @@
             <div class="ore-count">
               <span class="ore-icon">{ore.Icon}</span>
               <span class="ore-label">{ore.OreName}</span>
-              <span class="ore-qty">{$ores[ore.OreKey] ?? 0}</span>
+              <span class="ore-qty">{($ores[ore.OreKey] ?? 0) + (pendingOres[ore.OreKey] ?? 0)}</span>
               {#if ore.MaxQuantity > 0}
                 <span class="ore-max">/ {ore.MaxQuantity}</span>
               {/if}
@@ -170,7 +189,7 @@
               {#if isActive}
                 <span class="mining-indicator">&#x23F1;&#xFE0F;</span>
               {:else}
-                <span class="ore-btn-qty">{$ores[ore.OreKey] ?? 0}</span>
+                <span class="ore-btn-qty">{($ores[ore.OreKey] ?? 0) + (pendingOres[ore.OreKey] ?? 0)}</span>
               {/if}
             </div>
           </button>
