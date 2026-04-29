@@ -81,20 +81,18 @@
     actionLoading = true;
     errorMsg = '';
     resetCombatState();
-    let entered = false;
     try {
       const res = await mapAPI.enterArea(pendingArea.area_key);
       combatData = res.data;
       closeConfirm();
       view = 'combat';
-      entered = true;
+      // Show the first monster card — user clicks Fight to begin.
+      // Auto-continue handles subsequent fights once the first is done.
     } catch (e) {
       errorMsg = e?.response?.data?.error || 'Failed to enter area.';
     } finally {
       actionLoading = false;
     }
-    // Auto-start first fight after actionLoading is cleared
-    if (entered) fight();
   }
 
   async function fight() {
@@ -244,7 +242,14 @@
   }
 
   onDestroy(function () {
+    if (autoContinueTimer) { clearTimeout(autoContinueTimer); autoContinueTimer = null; }
     clearTimers();
+    // If the user leaves while a fight animation is still playing, the server
+    // already advanced the session but the player never saw the result.
+    // Reset the session so they return to the correct fight number.
+    if (combatPhase === 'animating') {
+      mapAPI.flee();
+    }
     backOverride.set(null);
   });
 
