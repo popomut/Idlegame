@@ -9,10 +9,12 @@
     hp: 30,
     maxHp: 30,
     icon: '&#x1F47A;',
+    attack: 8,
   };
 
   let combatLog = ['You enter the battlefield...', 'A Goblin Scout appears!'];
   let isBattling = false;
+  let isDead = false;
 
   function getHpPercent(hp, maxHp) {
     return Math.round((hp / maxHp) * 100);
@@ -20,14 +22,58 @@
 
   function startBattle() {
     isBattling = true;
-    combatLog = ['Battle started!', ...combatLog];
+    isDead = false;
+    enemy.hp = enemy.maxHp;
+    combatLog = ['Battle started!', 'A ' + enemy.name + ' appears!'];
     addLogEntry('You engage in combat with ' + enemy.name + '!');
+  }
+
+  function strike() {
+    if (!isBattling || isDead) return;
+
+    // Player attacks enemy
+    const playerStr = $player.str ?? 5;
+    const playerDmg = Math.max(1, playerStr + Math.floor(Math.random() * 6));
+    enemy.hp = Math.max(0, enemy.hp - playerDmg);
+    combatLog = [`You strike ${enemy.name} for ${playerDmg} damage. (${enemy.hp}/${enemy.maxHp} HP)`, ...combatLog];
+
+    if (enemy.hp <= 0) {
+      combatLog = [`${enemy.name} is defeated!`, ...combatLog];
+      addLogEntry(`You defeated ${enemy.name}!`);
+      isBattling = false;
+      return;
+    }
+
+    // Enemy counter-attacks
+    const enemyDmg = Math.max(1, enemy.attack + Math.floor(Math.random() * 4));
+    player.update(p => {
+      const newHp = Math.max(0, p.hp - enemyDmg);
+      combatLog = [`${enemy.name} hits you for ${enemyDmg} damage. (${newHp}/${p.maxHp} HP)`, ...combatLog];
+
+      if (newHp <= 0) {
+        isDead = true;
+        isBattling = false;
+        combatLog = ['⚠️ You have been defeated!', ...combatLog];
+        addLogEntry('You were defeated by ' + enemy.name + '!');
+      }
+
+      return { ...p, hp: newHp };
+    });
   }
 
   function fleeBattle() {
     isBattling = false;
-    combatLog = ['You fled from battle.', ...combatLog];
+    combatLog = ['You fell back from battle.', ...combatLog];
     addLogEntry('You fled from ' + enemy.name + '.');
+  }
+
+  function returnToBase() {
+    isDead = false;
+    isBattling = false;
+    enemy.hp = enemy.maxHp;
+    combatLog = ['You return to Base Camp. HP fully restored.', 'You enter the battlefield...', 'A Goblin Scout appears!'];
+    player.update(p => ({ ...p, hp: p.maxHp }));
+    addLogEntry('You returned to Base Camp and recovered.');
   }
 </script>
 
@@ -36,6 +82,19 @@
     <h1 class="page-title">&#x2694;&#xFE0F; Engagement</h1>
     <p class="page-subtitle">Neutralize hostiles, secure objectives</p>
   </div>
+
+  <!-- Death overlay -->
+  {#if isDead}
+    <div class="death-overlay card">
+      <div class="death-icon">💀</div>
+      <h2 class="death-title">Operative Down</h2>
+      <p class="death-msg">You were defeated in battle. Return to Base Camp to recover.</p>
+      <button class="action-btn return-btn" on:click={returnToBase}>
+        <span>🏕️</span>
+        <span>Return to Base Camp</span>
+      </button>
+    </div>
+  {/if}
 
   <!-- Arena -->
   <div class="card arena-card">
@@ -79,13 +138,15 @@
       <h2 class="card-title">Actions</h2>
     </div>
     <div class="combat-actions">
-      {#if !isBattling}
+      {#if isDead}
+        <p class="dead-notice">⚠️ Operative incapacitated — return to Base Camp.</p>
+      {:else if !isBattling}
         <button class="action-btn start-btn" on:click={startBattle}>
           <span>&#x2694;&#xFE0F;</span>
           <span>Engage Target</span>
         </button>
       {:else}
-        <button class="action-btn attack-btn">
+        <button class="action-btn attack-btn" on:click={strike}>
           <span>&#x1F5E1;&#xFE0F;</span>
           <span>Strike</span>
         </button>
@@ -305,6 +366,56 @@
   .flee-btn:hover {
     border-color: var(--color-text-muted);
     color: var(--color-text);
+  }
+
+  .death-overlay {
+    border-color: var(--color-danger);
+    background-color: rgba(150, 20, 20, 0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 20px;
+    text-align: center;
+  }
+
+  .death-icon {
+    font-size: 52px;
+    line-height: 1;
+  }
+
+  .death-title {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-danger-bright);
+    margin: 0;
+  }
+
+  .death-msg {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  .return-btn {
+    margin-top: 4px;
+    padding: 12px 28px;
+    border-color: var(--color-magic);
+    color: var(--color-magic-bright);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .return-btn:hover {
+    background-color: rgba(80, 80, 200, 0.15);
+  }
+
+  .dead-notice {
+    font-size: 13px;
+    color: var(--color-danger-bright);
+    margin: 0;
   }
 
   .combat-log {

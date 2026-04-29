@@ -63,3 +63,20 @@ export const userAPI = {
 export const characterAPI = {
   getCharacter: () => api.get('/character'),
 };
+
+export const mapAPI = {
+  getContinents: () => axios.get(`${API_BASE_URL}/api/map/continents`), // public
+  enterArea:     (areaKey) => api.post('/map/enter', { area_key: areaKey }),
+  getSession:    () => api.get('/map/session'),
+  advance:       () => api.post('/map/advance'),
+  flee:          () => api.post('/map/flee'),
+};
+
+export const equipmentAPI = {
+  getTypes:   () => axios.get(`${API_BASE_URL}/api/equipment/types`), // public
+  getBag:     () => api.get('/equipment/bag'),
+  getSlots:   () => api.get('/equipment/slots'),
+  equip:      (userEquipmentId, slot) => api.post('/equipment/equip', { user_equipment_id: userEquipmentId, slot }),
+  unequip:    (slot) => api.post('/equipment/unequip', { slot }),
+  give:       (equipmentKey) => api.post('/equipment/give', { equipment_key: equipmentKey }),
+};

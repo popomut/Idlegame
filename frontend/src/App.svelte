@@ -19,6 +19,8 @@
   import MiningView from './views/MiningView.svelte';
   import SkillsView from './views/SkillsView.svelte';
   import InventoryView from './views/InventoryView.svelte';
+  import EquipmentView from './views/EquipmentView.svelte';
+  import MapView from './views/MapView.svelte';
   import ShopView from './views/ShopView.svelte';
   import AchievementsView from './views/AchievementsView.svelte';
   import SettingsView from './views/SettingsView.svelte';
@@ -54,8 +56,12 @@
       <HomeView />
     {:else if $currentPage === 'combat'}
       <CombatView />
+    {:else if $currentPage === 'map'}
+      <MapView />
     {:else if $currentPage === 'mining'}
       <MiningView />
+    {:else if $currentPage === 'equipment'}
+      <EquipmentView />
     {:else if $currentPage === 'skills'}
       <SkillsView />
     {:else if $currentPage === 'inventory'}

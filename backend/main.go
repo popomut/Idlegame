@@ -38,8 +38,10 @@ func main() {
         app.Post("/api/auth/login", handlers.Login)
         app.Post("/api/auth/guest", handlers.GuestLogin)
         app.Post("/api/auth/logout", handlers.Logout)
-        app.Get("/api/ore-types", handlers.GetOreTypes)      // Master table — public
-        app.Get("/api/monsters", handlers.GetMonsters)           // Monster master table — public
+        app.Get("/api/ore-types", handlers.GetOreTypes)          // Master table — public
+        app.Get("/api/monsters", handlers.GetMonsters)            // Monster master table — public
+        app.Get("/api/equipment/types", handlers.GetEquipmentTypes) // Equipment master table — public
+        app.Get("/api/map/continents", handlers.GetContinents)       // Map master table — public
 
         // Protected routes (require JWT token)
         api := app.Group("/api", middleware.AuthMiddleware())
@@ -58,6 +60,19 @@ func main() {
 
         // Inventory routes
         api.Get("/inventory/ores", handlers.GetOreInventory)
+
+        // Equipment routes
+        api.Get("/equipment/bag", handlers.GetEquipmentBag)
+        api.Get("/equipment/slots", handlers.GetEquippedSlots)
+        api.Post("/equipment/equip", handlers.EquipItem)
+        api.Post("/equipment/unequip", handlers.UnequipSlot)
+        api.Post("/equipment/give", handlers.GiveEquipment)
+
+        // Map / combat routes
+        api.Post("/map/enter", handlers.EnterArea)
+        api.Get("/map/session", handlers.GetCombatSession)
+        api.Post("/map/advance", handlers.AdvanceFight)
+        api.Post("/map/flee", handlers.FleeCombat)
 
         // Start server
         port := 5000

@@ -1,13 +1,23 @@
 <script>
-  import { canGoBack, goBack, goHome } from '../stores/navigation.js';
+  import { canGoBack, goBack, goHome, backOverride } from '../stores/navigation.js';
   import { activeMining, miningProgress } from '../stores/mining.js';
+
+  function handleBack() {
+    if ($backOverride) {
+      $backOverride.fn();
+    } else {
+      goBack();
+    }
+  }
+
+  $: effectiveCanGoBack = $backOverride ? $backOverride.canGoBack : $canGoBack;
 </script>
 
 <nav class="bottom-bar" aria-label="Bottom navigation">
   <button
     class="bottom-btn back-btn"
-    on:click={goBack}
-    disabled={!$canGoBack}
+    on:click={handleBack}
+    disabled={!effectiveCanGoBack}
     aria-label="Go back"
   >
     <span class="btn-icon">&#x276E;</span>

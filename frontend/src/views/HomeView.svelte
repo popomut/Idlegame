@@ -34,7 +34,7 @@
 
       <!-- HP -->
       <div class="stat-row">
-        <span class="stat-label">&#x1FA79; VITALS</span>
+        <span class="stat-label">&#x2764; HP</span>
         <div class="stat-bar-track">
           <div class="stat-bar-fill hp-fill" style="width: {pct($player.hp, $player.maxHp)}%"></div>
         </div>

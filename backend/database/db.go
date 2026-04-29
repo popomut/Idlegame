@@ -50,6 +50,24 @@ func Init() error {
 		return err
 	}
 
+	// Seed map (continents, areas, area monsters)
+	err = seedMap()
+	if err != nil {
+		return err
+	}
+
+	// Seed equipment master table
+	err = seedEquipment()
+	if err != nil {
+		return err
+	}
+
+	// Back-fill starter equipment for existing users who have none
+	err = grantStarterEquipmentToExistingUsers()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -63,6 +81,13 @@ func migrate() error {
 		&MiningSession{},
 		&Monster{},
 		&MonsterDrop{},
+		&Continent{},
+		&Area{},
+		&AreaMonster{},
+		&CombatSession{},
+		&Equipment{},
+		&UserEquipment{},
+		&UserEquippedSlot{},
 		&ActivityLog{},
 	)
 }
@@ -345,6 +370,347 @@ func seedMonsters() error {
 			m.ID = existing.ID
 			m.CreatedAt = existing.CreatedAt
 			DB.Save(&m)
+		}
+	}
+	return nil
+}
+
+// seedEquipment upserts the equipment master table.
+// To add new equipment: INSERT a row here — no frontend or backend code changes needed.
+func seedEquipment() error {
+	items := []Equipment{
+		// ── WEAPONS ──────────────────────────────────────────────────────────
+		{
+			EquipmentKey: "rusty_blade",
+			Name: "Rusty Blade", Icon: "🗡️",
+			Description: "A corroded knife salvaged from a fallen soldier. Better than bare hands.",
+			Slot: "weapon", Rarity: "common",
+			BaseAttack: 5, AttackType: "physical",
+			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 1,
+		},
+		{
+			EquipmentKey: "combat_pistol",
+			Name: "Combat Pistol", Icon: "🔫",
+			Description: "Standard-issue sidearm. Reliable even after years of neglect.",
+			Slot: "weapon", Rarity: "uncommon",
+			BaseAttack: 12, AttackType: "physical",
+			ModifiersJSON: `[{"type":"dex","value":2}]`, LevelRequired: 5, SortOrder: 2,
+		},
+		{
+			EquipmentKey: "incendiary_launcher",
+			Name: "Incendiary Launcher", Icon: "🔥",
+			Description: "Fires canisters of burning chemical gel. Leaves nothing but ash.",
+			Slot: "weapon", Rarity: "rare",
+			BaseAttack: 20, AttackType: "fire",
+			ModifiersJSON: `[{"type":"resist_fire","value":10}]`, LevelRequired: 15, SortOrder: 3,
+		},
+		{
+			EquipmentKey: "tesla_coil_gun",
+			Name: "Tesla Coil Gun", Icon: "⚡",
+			Description: "Repurposed power-grid tech. Arcs through multiple targets.",
+			Slot: "weapon", Rarity: "epic",
+			BaseAttack: 30, AttackType: "lightning",
+			ModifiersJSON: `[{"type":"dex","value":3},{"type":"int","value":3}]`, LevelRequired: 30, SortOrder: 4,
+		},
+		{
+			EquipmentKey: "venom_blade",
+			Name: "Venom Blade", Icon: "🐍",
+			Description: "Coated in synthesised toxin. Each cut festers.",
+			Slot: "weapon", Rarity: "rare",
+			BaseAttack: 18, AttackType: "poison",
+			ModifiersJSON: `[{"type":"dex","value":5}]`, LevelRequired: 20, SortOrder: 5,
+		},
+		// ── HEAD ─────────────────────────────────────────────────────────────
+		{
+			EquipmentKey: "scrap_helmet",
+			Name: "Scrap Helmet", Icon: "⛑️",
+			Description: "Welded together from vehicle panels. Crude but effective.",
+			Slot: "head", Rarity: "common",
+			BaseDefence: 3,
+			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 10,
+		},
+		{
+			EquipmentKey: "military_helmet",
+			Name: "Military Helmet", Icon: "🪖",
+			Description: "Pre-war composite helmet. Still rated for combat.",
+			Slot: "head", Rarity: "uncommon",
+			BaseDefence: 6,
+			ModifiersJSON: `[{"type":"resist_fire","value":10}]`, LevelRequired: 5, SortOrder: 11,
+		},
+		{
+			EquipmentKey: "hazmat_hood",
+			Name: "Hazmat Hood", Icon: "😷",
+			Description: "Full-face chemical protection. Filters airborne toxins.",
+			Slot: "head", Rarity: "rare",
+			BaseDefence: 4,
+			ModifiersJSON: `[{"type":"resist_poison","value":30}]`, LevelRequired: 15, SortOrder: 12,
+		},
+		// ── CHEST ────────────────────────────────────────────────────────────
+		{
+			EquipmentKey: "tattered_vest",
+			Name: "Tattered Vest", Icon: "🧥",
+			Description: "Strips of leather sewn over a damaged flak jacket.",
+			Slot: "chest", Rarity: "common",
+			BaseDefence: 4,
+			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 20,
+		},
+		{
+			EquipmentKey: "kevlar_vest",
+			Name: "Kevlar Vest", Icon: "🦺",
+			Description: "Multi-layer ballistic weave. Stops fragments and pistol rounds.",
+			Slot: "chest", Rarity: "uncommon",
+			BaseDefence: 10,
+			ModifiersJSON: `[{"type":"resist_fire","value":15}]`, LevelRequired: 8, SortOrder: 21,
+		},
+		{
+			EquipmentKey: "nbc_suit",
+			Name: "NBC Suit", Icon: "☢️",
+			Description: "Nuclear-Biological-Chemical rated full-body suit. Invaluable in contaminated zones.",
+			Slot: "chest", Rarity: "rare",
+			BaseDefence: 8,
+			ModifiersJSON: `[{"type":"resist_poison","value":40},{"type":"resist_chaos","value":20}]`, LevelRequired: 20, SortOrder: 22,
+		},
+		// ── LEGS ─────────────────────────────────────────────────────────────
+		{
+			EquipmentKey: "scrap_leggings",
+			Name: "Scrap Leggings", Icon: "🩲",
+			Description: "Sheet metal strapped to canvas. Uncomfortable but protective.",
+			Slot: "legs", Rarity: "common",
+			BaseDefence: 3,
+			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 30,
+		},
+		{
+			EquipmentKey: "combat_pants",
+			Name: "Combat Pants", Icon: "👖",
+			Description: "Reinforced tactical trousers with knee guards.",
+			Slot: "legs", Rarity: "uncommon",
+			BaseDefence: 7,
+			ModifiersJSON: `[{"type":"dex","value":2}]`, LevelRequired: 5, SortOrder: 31,
+		},
+		// ── SHIELD ───────────────────────────────────────────────────────────
+		{
+			EquipmentKey: "scrap_shield",
+			Name: "Scrap Shield", Icon: "🛡️",
+			Description: "A car door repurposed as a shield. Heavy but solid.",
+			Slot: "shield", Rarity: "common",
+			BaseDefence: 5,
+			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 40,
+		},
+		{
+			EquipmentKey: "ballistic_shield",
+			Name: "Ballistic Shield", Icon: "🔰",
+			Description: "Police-grade riot shield. Rated for high-velocity impacts.",
+			Slot: "shield", Rarity: "uncommon",
+			BaseDefence: 12,
+			ModifiersJSON: `[{"type":"resist_fire","value":10}]`, LevelRequired: 10, SortOrder: 41,
+		},
+		// ── RINGS ────────────────────────────────────────────────────────────
+		{
+			EquipmentKey: "strength_band",
+			Name: "Strength Band", Icon: "💪",
+			Description: "A weighted training band that permanently enhances muscle output.",
+			Slot: "ring", Rarity: "common",
+			ModifiersJSON: `[{"type":"str","value":3}]`, LevelRequired: 1, SortOrder: 50,
+		},
+		{
+			EquipmentKey: "toxin_ring",
+			Name: "Toxin Ring", Icon: "💍",
+			Description: "Contains a slow-release antitoxin compound. Grants poison resistance.",
+			Slot: "ring", Rarity: "uncommon",
+			ModifiersJSON: `[{"type":"resist_poison","value":20}]`, LevelRequired: 5, SortOrder: 51,
+		},
+		{
+			EquipmentKey: "lightning_ward",
+			Name: "Lightning Ward", Icon: "⚡",
+			Description: "A Faraday-cage ring that dissipates electrical energy.",
+			Slot: "ring", Rarity: "rare",
+			ModifiersJSON: `[{"type":"resist_lightning","value":25}]`, LevelRequired: 15, SortOrder: 52,
+		},
+		// ── AMULET ───────────────────────────────────────────────────────────
+		{
+			EquipmentKey: "dog_tag_amulet",
+			Name: "Dog Tag Amulet", Icon: "🪪",
+			Description: "The tags of a fallen ally. Wearing them sharpens your edge.",
+			Slot: "amulet", Rarity: "common",
+			ModifiersJSON: `[{"type":"str","value":2},{"type":"dex","value":2}]`, LevelRequired: 1, SortOrder: 60,
+		},
+		{
+			EquipmentKey: "commanders_amulet",
+			Name: "Commander's Amulet", Icon: "🎖️",
+			Description: "Recovered from a high-ranking officer. Radiates authority and power.",
+			Slot: "amulet", Rarity: "epic",
+			ModifiersJSON: `[{"type":"str","value":5},{"type":"int","value":5},{"type":"dex","value":5}]`, LevelRequired: 40, SortOrder: 61,
+		},
+	}
+
+	for _, item := range items {
+		var existing Equipment
+		result := DB.Where("equipment_key = ?", item.EquipmentKey).First(&existing)
+		if result.Error != nil {
+			DB.Create(&item)
+		} else {
+			item.ID = existing.ID
+			item.CreatedAt = existing.CreatedAt
+			DB.Save(&item)
+		}
+	}
+	return nil
+}
+
+// seedMap upserts continents, areas, and area-monster assignments.
+// To add a new area or continent: INSERT rows here — no code changes needed.
+func seedMap() error {
+	// ── Continents ────────────────────────────────────────────────────────
+	continents := []Continent{
+		{ContinentKey: "scorched_wastes",    Name: "Scorched Wastes",    Icon: "🏜️", Difficulty: "easy",    Description: "Sun-scorched badlands stripped bare by the final war. Weak survivors and irradiated vermin roam here.", SortOrder: 1},
+		{ContinentKey: "industrial_ruins",   Name: "Industrial Ruins",   Icon: "🏭", Difficulty: "medium",  Description: "Collapsed factories leaking chemical waste. Automated machines still follow their kill protocols.", SortOrder: 2},
+		{ContinentKey: "irradiated_badlands",Name: "Irradiated Badlands",Icon: "☢️", Difficulty: "hard",    Description: "Saturated with fallout from the dirty bombs. Mutations run rampant.", SortOrder: 3},
+		{ContinentKey: "the_dead_zone",      Name: "The Dead Zone",      Icon: "💀", Difficulty: "extreme", Description: "Ground zero of the final strike. Nothing should be alive here — but something is.", SortOrder: 4},
+	}
+	continentIDs := make(map[string]uint)
+	for _, c := range continents {
+		var existing Continent
+		if DB.Where("continent_key = ?", c.ContinentKey).First(&existing).Error != nil {
+			DB.Create(&c)
+			continentIDs[c.ContinentKey] = c.ID
+		} else {
+			c.ID = existing.ID
+			c.CreatedAt = existing.CreatedAt
+			DB.Save(&c)
+			continentIDs[c.ContinentKey] = existing.ID
+		}
+	}
+
+	// ── Areas ─────────────────────────────────────────────────────────────
+	type areaSeed struct {
+		ContinentKey     string
+		AreaKey          string
+		Name             string
+		Icon             string
+		Description      string
+		Difficulty       string
+		FightsBeforeBoss int
+		BossMonsterKey   string
+		SortOrder        int
+	}
+	areas := []areaSeed{
+		// Scorched Wastes
+		{"scorched_wastes", "dusty_outpost",     "Dusty Outpost",     "🏕️", "A crumbling waystation. Scavengers pick through the rubble.",          "easy",    5,  "irradiated_hound",  1},
+		{"scorched_wastes", "crumbled_highway",  "Crumbled Highway",  "🛣️", "A raised road buckled by the blast. Rodents nest in the wreckage.",    "easy",    5,  "chem_soldier",      2},
+		{"scorched_wastes", "abandoned_refinery","Abandoned Refinery","🏗️", "A fuel depot gone silent. Toxic fumes linger near the tanks.",         "medium",  7,  "gas_mask_raider",   3},
+		// Industrial Ruins
+		{"industrial_ruins", "factory_floor",   "Factory Floor",     "⚙️",  "Assembly lines frozen mid-cycle. War machines patrol the aisles.",     "medium",  7,  "rust_golem",        1},
+		{"industrial_ruins", "sewer_network",   "Sewer Network",     "🕳️", "Flooded tunnels beneath the plant. Slimes and vermin breed here.",      "medium",  7,  "biohazard_slime",   2},
+		{"industrial_ruins", "collapsed_bridge","Collapsed Bridge",  "🌉", "A suspension bridge sagging into the river. Hounds hunt in packs.",     "hard",    10, "war_drone",         3},
+		// Irradiated Badlands
+		{"irradiated_badlands","toxic_swamp",   "Toxic Swamp",       "🌿", "A bog of chemical runoff. Slimes and crawlers thrive in the filth.",    "hard",    10, "biohazard_slime",   1},
+		{"irradiated_badlands","radiation_fields","Radiation Fields", "☢️", "Open plains pulsing with gamma radiation. Fast predators here.",        "hard",    10, "war_drone",         2},
+		{"irradiated_badlands","chemical_plant", "Chemical Plant",   "🧪", "An active chem lab still producing weapons. Soldiers guard it.",         "extreme", 12, "chem_soldier",      3},
+		// The Dead Zone
+		{"the_dead_zone","mass_grave",     "Mass Grave",       "💀", "Thousands of bodies. Something has reanimated them.",                    "extreme", 12, "mutant_brute",      1},
+		{"the_dead_zone","command_bunker", "Command Bunker",   "🏰", "A reinforced military complex. Drones still respond to old orders.",     "extreme", 12, "war_drone",         2},
+		{"the_dead_zone","ground_zero",    "Ground Zero",      "☠️", "The crater of the final detonation. The apex predator rules here.",      "extreme", 15, "mutant_brute",      3},
+	}
+	areaIDs := make(map[string]uint)
+	for _, a := range areas {
+		cid := continentIDs[a.ContinentKey]
+		area := Area{
+			ContinentID: cid, AreaKey: a.AreaKey, Name: a.Name, Icon: a.Icon,
+			Description: a.Description, Difficulty: a.Difficulty,
+			FightsBeforeBoss: a.FightsBeforeBoss, BossMonsterKey: a.BossMonsterKey, SortOrder: a.SortOrder,
+		}
+		var existing Area
+		if DB.Where("area_key = ?", a.AreaKey).First(&existing).Error != nil {
+			DB.Create(&area)
+			areaIDs[a.AreaKey] = area.ID
+		} else {
+			area.ID = existing.ID
+			area.CreatedAt = existing.CreatedAt
+			DB.Save(&area)
+			areaIDs[a.AreaKey] = existing.ID
+		}
+	}
+
+	// ── Area monsters ─────────────────────────────────────────────────────
+	type amSeed struct{ AreaKey, MonsterKey string; Weight int }
+	areaMonsters := []amSeed{
+		{"dusty_outpost",     "wasteland_scavenger", 3},
+		{"dusty_outpost",     "rad_rat",             2},
+		{"crumbled_highway",  "rad_rat",             3},
+		{"crumbled_highway",  "toxic_crawler",       2},
+		{"crumbled_highway",  "wasteland_scavenger", 1},
+		{"abandoned_refinery","toxic_crawler",       3},
+		{"abandoned_refinery","gas_mask_raider",     2},
+		{"factory_floor",     "rust_golem",          2},
+		{"factory_floor",     "gas_mask_raider",     3},
+		{"sewer_network",     "rad_rat",             2},
+		{"sewer_network",     "biohazard_slime",     3},
+		{"sewer_network",     "toxic_crawler",       2},
+		{"collapsed_bridge",  "irradiated_hound",    3},
+		{"collapsed_bridge",  "gas_mask_raider",     2},
+		{"collapsed_bridge",  "rust_golem",          1},
+		{"toxic_swamp",       "biohazard_slime",     3},
+		{"toxic_swamp",       "toxic_crawler",       2},
+		{"radiation_fields",  "irradiated_hound",    2},
+		{"radiation_fields",  "chem_soldier",        3},
+		{"chemical_plant",    "chem_soldier",        3},
+		{"chemical_plant",    "biohazard_slime",     2},
+		{"mass_grave",        "mutant_brute",        2},
+		{"mass_grave",        "gas_mask_raider",     3},
+		{"command_bunker",    "war_drone",           3},
+		{"command_bunker",    "chem_soldier",        2},
+		{"ground_zero",       "mutant_brute",        3},
+		{"ground_zero",       "war_drone",           2},
+	}
+	for _, am := range areaMonsters {
+		areaID := areaIDs[am.AreaKey]
+		var existing AreaMonster
+		if DB.Where("area_id = ? AND monster_key = ?", areaID, am.MonsterKey).First(&existing).Error != nil {
+			DB.Create(&AreaMonster{AreaID: areaID, MonsterKey: am.MonsterKey, Weight: am.Weight})
+		} else {
+			existing.Weight = am.Weight
+			DB.Save(&existing)
+		}
+	}
+	return nil
+}
+
+// grantStarterEquipmentToExistingUsers back-fills starter gear for any user
+// who currently has zero items in their equipment bag (idempotent).
+func grantStarterEquipmentToExistingUsers() error {
+	starterKeys := []string{
+		"rusty_blade", "scrap_helmet", "tattered_vest",
+		"scrap_leggings", "scrap_shield", "strength_band", "dog_tag_amulet",
+	}
+
+	// Build equipment_key → ID lookup
+	equipMap := make(map[string]uint)
+	for _, key := range starterKeys {
+		var e Equipment
+		if err := DB.Where("equipment_key = ?", key).First(&e).Error; err == nil {
+			equipMap[key] = e.ID
+		}
+	}
+
+	// Find all users
+	var users []User
+	DB.Find(&users)
+
+	for _, u := range users {
+		var count int64
+		DB.Model(&UserEquipment{}).Where("user_id = ?", u.ID).Count(&count)
+		if count > 0 {
+			continue // already has gear
+		}
+		// Grant starter items
+		for _, key := range starterKeys {
+			if id, ok := equipMap[key]; ok {
+				DB.Create(&UserEquipment{
+					UserID:      u.ID,
+					EquipmentID: id,
+					ObtainedAt:  u.CreatedAt,
+				})
+			}
 		}
 	}
 	return nil

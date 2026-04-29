@@ -45,6 +45,29 @@ func createInitialOreInventory(userID uint) {
 	}
 }
 
+// createStarterEquipment grants a set of common-tier starter gear to a new user.
+func createStarterEquipment(userID uint) {
+	starterKeys := []string{
+		"rusty_blade",
+		"scrap_helmet",
+		"tattered_vest",
+		"scrap_leggings",
+		"scrap_shield",
+		"strength_band",
+		"dog_tag_amulet",
+	}
+	for _, key := range starterKeys {
+		var equip database.Equipment
+		if err := database.DB.Where("equipment_key = ?", key).First(&equip).Error; err == nil {
+			database.DB.Create(&database.UserEquipment{
+				UserID:      userID,
+				EquipmentID: equip.ID,
+				ObtainedAt:  time.Now(),
+			})
+		}
+	}
+}
+
 // Register creates a new user account
 func Register(c *fiber.Ctx) error {
 	req := new(RegisterRequest)
@@ -81,6 +104,8 @@ func Register(c *fiber.Ctx) error {
 
 	// Create ore inventory for new user
 	createInitialOreInventory(user.ID)
+	// Grant starter equipment
+	createStarterEquipment(user.ID)
 
 	// Generate JWT token
 	token, err := utils.GenerateJWT(user.ID)
@@ -167,6 +192,8 @@ func GuestLogin(c *fiber.Ctx) error {
 	
 	// Create initial ore inventory
 	createInitialOreInventory(user.ID)
+	// Grant starter equipment
+	createStarterEquipment(user.ID)
 	
 	// Generate JWT token
 	token, err := utils.GenerateJWT(user.ID)

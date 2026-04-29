@@ -2,7 +2,7 @@
   import { player } from '../stores/game.js';
 
   const shopItems = [
-    { id: 1, name: 'Medkit',               icon: '&#x1F9EA;', cost: 25,  desc: 'Restores 50 Vitals',        category: 'consumable' },
+    { id: 1, name: 'Medkit',               icon: '&#x1F9EA;', cost: 25,  desc: 'Restores 50 HP',        category: 'consumable' },
     { id: 2, name: 'Stim Injector',        icon: '&#x1F489;', cost: 30,  desc: 'Restores 25 Stims',         category: 'consumable' },
     { id: 3, name: 'Combat Knife',         icon: '&#x1F5E1;&#xFE0F;', cost: 120, desc: '+5 Strike Power',   category: 'weapon' },
     { id: 4, name: 'Field Vest',           icon: '&#x1F9E5;', cost: 80,  desc: '+8 Protection',             category: 'armor' },

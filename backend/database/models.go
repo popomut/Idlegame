@@ -114,6 +114,107 @@ type MiningSession struct {
 	CreatedAt   time.Time
 }
 
+// Continent defines a top-level map region. Add rows to extend — no code changes needed.
+type Continent struct {
+	ID           uint   `gorm:"primaryKey"`
+	ContinentKey string `gorm:"uniqueIndex;not null"` // e.g. "scorched_wastes"
+	Name         string `gorm:"not null"`
+	Icon         string
+	Description  string
+	Difficulty   string `gorm:"default:'easy'"` // easy, medium, hard, extreme
+	SortOrder    int    `gorm:"default:0"`
+	CreatedAt    time.Time
+}
+
+// Area is a zone within a Continent. Monsters spawn here; a boss appears after FightsBeforeBoss kills.
+type Area struct {
+	ID               uint      `gorm:"primaryKey"`
+	AreaKey          string    `gorm:"uniqueIndex;not null"` // e.g. "dusty_outpost"
+	ContinentID      uint      `gorm:"not null;index"`
+	Continent        Continent `gorm:"foreignKey:ContinentID"`
+	Name             string    `gorm:"not null"`
+	Icon             string
+	Description      string
+	Difficulty       string `gorm:"default:'easy'"`
+	FightsBeforeBoss int    `gorm:"default:5"`
+	BossMonsterKey   string `gorm:"not null"` // references Monster.MonsterKey
+	SortOrder        int    `gorm:"default:0"`
+	CreatedAt        time.Time
+}
+
+// AreaMonster links monsters to areas with a spawn weight.
+// Higher Weight = appears more often. Add rows to extend — no code changes needed.
+type AreaMonster struct {
+	ID         uint   `gorm:"primaryKey"`
+	AreaID     uint   `gorm:"not null;uniqueIndex:idx_area_monster"`
+	MonsterKey string `gorm:"not null;uniqueIndex:idx_area_monster"`
+	Weight     int    `gorm:"default:1"` // relative spawn probability
+}
+
+// CombatSession tracks an active fight sequence for a player.
+// One row per user (unique on UserID). Entering a new area replaces the current session.
+type CombatSession struct {
+	ID                uint   `gorm:"primaryKey"`
+	UserID            uint   `gorm:"not null;uniqueIndex"`
+	AreaKey           string `gorm:"not null"`
+	FightCount        int    `gorm:"default:0"`
+	FightsBeforeBoss  int    `gorm:"default:5"`
+	Status            string `gorm:"default:'fighting'"` // fighting, boss, complete
+	CurrentMonsterKey string
+
+	StartedAt time.Time
+	UpdatedAt time.Time
+}
+
+// Equipment defines a piece of gear in the master table.
+// Slot values: head, chest, legs, weapon, shield, ring, amulet
+// Rarity values: common, uncommon, rare, epic, legendary
+// AttackType: physical, fire, lightning, ice, poison, chaos
+// ModifiersJSON: JSON array of {type, value} e.g. [{"type":"str","value":5}]
+//   Modifier types: str, int, dex, resist_fire, resist_lightning, resist_ice, resist_poison, resist_chaos
+// Adding a new equipment: INSERT a row here — no frontend/backend code changes needed.
+type Equipment struct {
+	ID           uint   `gorm:"primaryKey"`
+	EquipmentKey string `gorm:"uniqueIndex;not null"` // e.g. "rusty_blade"
+	Name         string `gorm:"not null"`
+	Icon         string
+	Description  string
+	Slot         string `gorm:"not null"` // head, chest, legs, weapon, shield, ring, amulet
+	Rarity       string `gorm:"default:'common'"`
+
+	// Primary combat stat (weapon: use BaseAttack+AttackType; armor: use BaseDefence)
+	BaseAttack  int    `gorm:"default:0"`
+	AttackType  string `gorm:"default:'physical'"`
+	BaseDefence int    `gorm:"default:0"`
+
+	// Secondary modifiers as JSON string
+	ModifiersJSON string `gorm:"default:'[]'"`
+
+	LevelRequired int `gorm:"default:1"`
+	SortOrder     int `gorm:"default:0"`
+
+	CreatedAt time.Time
+}
+
+// UserEquipment is the equipment bag — one row per piece of gear a user has obtained.
+type UserEquipment struct {
+	ID          uint      `gorm:"primaryKey"`
+	UserID      uint      `gorm:"not null;index"`
+	EquipmentID uint      `gorm:"not null"`
+	Equipment   Equipment `gorm:"foreignKey:EquipmentID"`
+	ObtainedAt  time.Time
+}
+
+// UserEquippedSlot stores what the user is currently wearing in each slot.
+// Slot values: head, chest, legs, weapon, shield, ring1, ring2, amulet
+// UserEquipmentID = 0 means the slot is empty.
+type UserEquippedSlot struct {
+	ID             uint   `gorm:"primaryKey"`
+	UserID         uint   `gorm:"uniqueIndex:idx_user_slot;not null"`
+	Slot           string `gorm:"uniqueIndex:idx_user_slot;not null"`
+	UserEquipmentID uint  `gorm:"default:0"` // references UserEquipment.ID; 0 = empty
+}
+
 // Monster defines enemy stats — add rows to this table to add new monsters with no code changes.
 // Attack types: physical, fire, lightning, ice, poison, chaos
 // Resistances: 0 = no resistance, 100 = full immunity

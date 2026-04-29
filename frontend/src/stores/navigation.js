@@ -33,3 +33,9 @@ export function goBack() {
 export function goHome() {
   historyStack.set(['home']);
 }
+
+// backOverride: when a view has internal sub-navigation (e.g. MapView),
+// it can register a local back handler here. BottomBar calls this instead
+// of goBack(). Set to null to restore default behaviour.
+// Value: { fn: Function, canGoBack: boolean } | null
+export const backOverride = writable(null);
