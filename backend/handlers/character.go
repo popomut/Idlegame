@@ -54,7 +54,36 @@ func GetCharacter(c *fiber.Ctx) error {
 	})
 }
 
-// xpForNextLevel returns the XP threshold to reach the NEXT level after `currentLevel`
+// HealHP persists the player's current HP during regen (called periodically by the client).
+// POST /api/character/heal  body: { hp: int }
+func HealHP(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
+
+	var body struct {
+		HP int `json:"hp"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+	}
+
+	var user database.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "user not found"})
+	}
+
+	// Clamp to valid range
+	hp := body.HP
+	if hp < 0 {
+		hp = 0
+	}
+	if hp > user.MaxHP {
+		hp = user.MaxHP
+	}
+
+	database.DB.Model(&user).Update("hp", hp)
+	return c.JSON(fiber.Map{"hp": hp})
+}
+
 func xpForNextLevel(currentLevel int) int64 {
 	nextLevel := currentLevel + 1
 	var cl database.CharacterLevel

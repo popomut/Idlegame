@@ -8,6 +8,12 @@ import (
 	"idlegame-backend/database"
 )
 
+// secondsPerFight is the assumed offline fight duration (tune as needed).
+const secondsPerFight = 5
+
+// maxOfflineSeconds caps offline progression at 4 hours.
+const maxOfflineSeconds = 14400
+
 // ── Response shapes ────────────────────────────────────────────────────────
 
 type AreaMonsterEntry struct {
@@ -327,4 +333,136 @@ func FleeCombat(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 	database.DB.Where("user_id = ?", userID).Delete(&database.CombatSession{})
 	return c.JSON(fiber.Map{"success": true})
+}
+
+// ── ResumeCombat ───────────────────────────────────────────────────────────
+
+// ResumeResponse is returned from POST /api/map/resume.
+// It includes the current session state plus any gains earned while offline.
+type ResumeResponse struct {
+	Session         *CombatSessionResponse `json:"session"`
+	OfflineFights   int                    `json:"offline_fights"`
+	OfflineMonsters int                    `json:"offline_monsters"`
+	OfflineBosses   int                    `json:"offline_bosses"`
+	OfflineXP       int64                  `json:"offline_xp"`
+	OfflineMoney    int64                  `json:"offline_money"`
+	OfflineSeconds  int64                  `json:"offline_seconds"`
+	PlayerDied      bool                   `json:"player_died"`
+}
+
+// ResumeCombat calculates offline fight progress since the player was last active,
+// simulates all elapsed fights, awards XP/money, and returns the updated session.
+// POST /api/map/resume
+func ResumeCombat(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
+
+	var session database.CombatSession
+	if err := database.DB.Where("user_id = ?", userID).First(&session).Error; err != nil {
+		// No active session — nothing to resume
+		return c.JSON(ResumeResponse{})
+	}
+
+	// Calculate how long the player was away
+	elapsedSec := time.Since(session.UpdatedAt).Seconds()
+	if elapsedSec < secondsPerFight {
+		// Not enough time for even one fight — return session as-is
+		resp := buildCombatResponse(session)
+		return c.JSON(ResumeResponse{Session: &resp, OfflineSeconds: int64(elapsedSec)})
+	}
+	if elapsedSec > maxOfflineSeconds {
+		elapsedSec = maxOfflineSeconds
+	}
+
+	maxFights := int(elapsedSec / secondsPerFight)
+
+	var totalXP int64
+	var totalMoney int64
+	fightsDone := 0
+	monstersKilled := 0
+	bossesKilled := 0
+	playerDied := false
+
+	for i := 0; i < maxFights; i++ {
+		// Reload player stats each fight (HP changes between fights)
+		playerStats := GetPlayerCombatStats(userID)
+
+		var monster database.Monster
+		if err := database.DB.Where("monster_key = ?", session.CurrentMonsterKey).First(&monster).Error; err != nil {
+			break
+		}
+
+		outcome, _, playerHPAfter := SimulateFight(playerStats, monster)
+		isBoss := session.Status == "boss"
+		fightsDone++
+
+		if outcome == "player_wins" {
+			// Award money
+			moneyGained := int64(monster.MoneyDropMin)
+			if monster.MoneyDropMax > monster.MoneyDropMin {
+				moneyGained += int64(rand.Intn(monster.MoneyDropMax-monster.MoneyDropMin+1))
+			}
+			xpGained := int64(monster.XPDrop)
+			totalXP += xpGained
+			totalMoney += moneyGained
+
+			// Persist money and XP
+			var u database.User
+			database.DB.First(&u, userID)
+			u.Money += moneyGained
+			database.DB.Save(&u)
+			AwardXP(userID, xpGained)
+
+			// Count kill
+			if isBoss {
+				bossesKilled++
+			} else {
+				monstersKilled++
+			}
+
+			// Persist remaining HP
+			database.DB.Model(&database.User{}).Where("id = ?", userID).Update("hp", playerHPAfter)
+
+			// Advance session
+			session.FightCount++
+			var area database.Area
+			database.DB.Where("area_key = ?", session.AreaKey).First(&area)
+			if session.Status == "boss" {
+				// Boss beaten — loop back to Fight 1 of the same zone
+				session.FightCount = 0
+				session.Status = "fighting"
+				session.CurrentMonsterKey = pickRandomMonster(area.ID)
+			} else if session.FightCount >= session.FightsBeforeBoss {
+				session.Status = "boss"
+				session.CurrentMonsterKey = area.BossMonsterKey
+			} else {
+				session.CurrentMonsterKey = pickRandomMonster(area.ID)
+			}
+			session.UpdatedAt = time.Now()
+			database.DB.Save(&session)
+
+		} else {
+			// Player died offline — restore HP and clear session
+			playerDied = true
+			database.DB.Model(&database.User{}).Where("id = ?", userID).Update("hp", playerStats.MaxHP)
+			database.DB.Where("user_id = ?", userID).Delete(&database.CombatSession{})
+			break
+		}
+	}
+
+	var sessionResp *CombatSessionResponse
+	if !playerDied {
+		resp := buildCombatResponse(session)
+		sessionResp = &resp
+	}
+
+	return c.JSON(ResumeResponse{
+		Session:         sessionResp,
+		OfflineFights:   fightsDone,
+		OfflineMonsters: monstersKilled,
+		OfflineBosses:   bossesKilled,
+		OfflineXP:       totalXP,
+		OfflineMoney:    totalMoney,
+		OfflineSeconds:  int64(elapsedSec),
+		PlayerDied:      playerDied,
+	})
 }

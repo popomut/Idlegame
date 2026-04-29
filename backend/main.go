@@ -52,6 +52,7 @@ func main() {
 
         // Character routes
         api.Get("/character", handlers.GetCharacter)
+        api.Post("/character/heal", handlers.HealHP)
 
         // Mining routes
         api.Post("/mining/start", handlers.StartMining)
@@ -71,6 +72,7 @@ func main() {
         // Map / combat routes
         api.Post("/map/enter", handlers.EnterArea)
         api.Get("/map/session", handlers.GetCombatSession)
+        api.Post("/map/resume", handlers.ResumeCombat)
         api.Post("/map/advance", handlers.AdvanceFight)
         api.Post("/map/flee", handlers.FleeCombat)
 

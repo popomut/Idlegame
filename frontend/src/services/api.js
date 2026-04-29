@@ -62,12 +62,14 @@ export const userAPI = {
 
 export const characterAPI = {
   getCharacter: () => api.get('/character'),
+  heal: (hp) => api.post('/character/heal', { hp }),
 };
 
 export const mapAPI = {
   getContinents: () => axios.get(`${API_BASE_URL}/api/map/continents`), // public
   enterArea:     (areaKey) => api.post('/map/enter', { area_key: areaKey }),
   getSession:    () => api.get('/map/session'),
+  resume:        () => api.post('/map/resume'),
   advance:       () => api.post('/map/advance'),
   flee:          () => api.post('/map/flee'),
 };

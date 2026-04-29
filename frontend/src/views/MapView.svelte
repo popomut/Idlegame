@@ -17,6 +17,9 @@
   let actionLoading = false;
   let errorMsg = '';
 
+  // ── Offline gains ───────────────────────────────────────────────────────
+  let offlineResult = null;   // ResumeResponse if offline fights happened
+
   // ── Animation state ────────────────────────────────────────────────────
   let visibleLog = [];        // log entries revealed so far
   let dispPlayerHP = 0;       // HP shown in live bars (animated)
@@ -55,9 +58,19 @@
       loading = false;
     }
     try {
-      const sRes = await mapAPI.getSession();
-      if (sRes.data && sRes.data.status) {
-        combatData = sRes.data;
+      const sRes = await mapAPI.resume();
+      const resumeData = sRes.data;
+
+      // Show offline popup if any fights happened while away
+      if (resumeData.offline_fights > 0 || resumeData.player_died) {
+        offlineResult = resumeData;
+        // Sync player store with new HP/XP/money from server
+        const { syncCharacter } = await import('../stores/game.js');
+        await syncCharacter();
+      }
+
+      if (resumeData.session && resumeData.session.status) {
+        combatData = resumeData.session;
         for (const cont of continents) {
           if (cont.areas && cont.areas.find(a => a.area_key === combatData.area_key)) {
             selectedContinent = cont;
@@ -244,12 +257,9 @@
   onDestroy(function () {
     if (autoContinueTimer) { clearTimeout(autoContinueTimer); autoContinueTimer = null; }
     clearTimers();
-    // If the user leaves while a fight animation is still playing, the server
-    // already advanced the session but the player never saw the result.
-    // Reset the session so they return to the correct fight number.
-    if (combatPhase === 'animating') {
-      mapAPI.flee();
-    }
+    // Do NOT flee on destroy — flee deletes the session entirely, causing the
+    // zone selection screen on return. The session persists so resume() can
+    // restore combat correctly when the user comes back.
     backOverride.set(null);
   });
 
@@ -274,6 +284,40 @@
 
 <!-- ── Map page ─────────────────────────────────────────────────────────── -->
 <div class="view-map">
+
+<!-- ── Offline gains popup ───────────────────────────────────────────────── -->
+{#if offlineResult}
+  <div class="offline-backdrop">
+    <div class="offline-popup">
+      <div class="offline-icon">{offlineResult.player_died ? '💀' : '⚔️'}</div>
+      <h2 class="offline-title">
+        {offlineResult.player_died ? 'Defeated While Away' : 'Combat Progress While Away'}
+      </h2>
+      <p class="offline-time">
+        {Math.round(offlineResult.offline_seconds / 60)} min offline
+        · {offlineResult.offline_fights} fight{offlineResult.offline_fights !== 1 ? 's' : ''}
+      </p>
+      <div class="offline-rewards">
+        {#if offlineResult.offline_monsters > 0}
+          <span class="reward-pill monster-pill">⚔️ {offlineResult.offline_monsters} monster{offlineResult.offline_monsters !== 1 ? 's' : ''}</span>
+        {/if}
+        {#if offlineResult.offline_bosses > 0}
+          <span class="reward-pill boss-pill-o">👑 {offlineResult.offline_bosses} boss{offlineResult.offline_bosses !== 1 ? 'es' : ''}</span>
+        {/if}
+        {#if offlineResult.offline_xp > 0}
+          <span class="reward-pill xp-pill">+{offlineResult.offline_xp} XP</span>
+        {/if}
+        {#if offlineResult.offline_money > 0}
+          <span class="reward-pill money-pill">+{offlineResult.offline_money} ¢</span>
+        {/if}
+        {#if offlineResult.player_died}
+          <span class="reward-pill death-pill">💉 HP Restored</span>
+        {/if}
+      </div>
+      <button class="offline-btn" on:click={() => offlineResult = null}>Awesome!</button>
+    </div>
+  </div>
+{/if}
 
   {#if loading}
     <div class="loading">Loading map data…</div>
@@ -575,6 +619,73 @@
     border-radius: 8px;
     font-size: 13px;
   }
+
+  /* ── Offline gains popup ───────────────────────────────────────────────── */
+  .offline-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .offline-popup {
+    background: var(--color-bg-panel);
+    border: 2px solid var(--color-gold-dim);
+    border-radius: 14px;
+    padding: 28px 24px;
+    text-align: center;
+    max-width: 360px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .offline-icon { font-size: 52px; line-height: 1; }
+
+  .offline-title {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text-heading);
+    margin: 0;
+  }
+
+  .offline-time {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  .offline-rewards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .death-pill { color: var(--color-danger-bright); border-color: var(--color-danger); background: rgba(200,50,50,0.1); }
+  .monster-pill { color: var(--color-text-muted); border-color: var(--color-border); background: rgba(255,255,255,0.05); }
+  .boss-pill-o { color: #cc44ff; border-color: #8822aa44; background: rgba(136,34,170,0.1); }
+
+  .offline-btn {
+    margin-top: 4px;
+    padding: 10px 28px;
+    background: var(--color-gold-dim);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .offline-btn:hover { background: var(--color-gold-bright); }
 
   .page-header {
     display: flex;

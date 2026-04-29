@@ -1,11 +1,43 @@
 <script>
+  import { onMount, onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import { player, activityLog } from '../stores/game.js';
+  import { characterAPI } from '../services/api.js';
   import { navigateTo } from '../stores/navigation.js';
 
   function pct(val, max) {
     if (!max) return 0;
     return Math.min(100, Math.round((val / max) * 100));
   }
+
+  // ── HP regen: +1 HP/sec while on Base Camp, persist to DB every 30s ───
+  let regenInterval = null;
+  let ticksSinceSave = 0;
+  const PERSIST_EVERY = 30; // seconds between DB saves
+
+  onMount(() => {
+    regenInterval = setInterval(() => {
+      player.update(p => {
+        if (p.hp >= p.maxHp) return p;
+        const newHp = Math.min(p.hp + 1, p.maxHp);
+        ticksSinceSave++;
+        if (ticksSinceSave >= PERSIST_EVERY || newHp === p.maxHp) {
+          ticksSinceSave = 0;
+          characterAPI.heal(newHp).catch(() => {});
+        }
+        return { ...p, hp: newHp };
+      });
+    }, 1000);
+  });
+
+  onDestroy(() => {
+    if (regenInterval) {
+      clearInterval(regenInterval);
+      // Persist whatever HP the player is at when they leave
+      const currentHp = get(player).hp;
+      characterAPI.heal(currentHp).catch(() => {});
+    }
+  });
 </script>
 
 <div class="view-home">
