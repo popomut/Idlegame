@@ -14,10 +14,10 @@
   // ── Layout: body positions for 8 slots ────────────────────────────────
   // Grid: 3 columns × 4 rows. Empty cells use slot id 'empty'.
   const bodyLayout = [
-    ['empty',  'head',   'empty' ],
-    ['ring1',  'chest',  'amulet'],
-    ['weapon', 'empty',  'shield'],
-    ['ring2',  'legs',   'empty' ],
+    ['empty',  'head',   'empty'  ],
+    ['ring1',  'chest',  'amulet' ],
+    ['weapon', 'empty',  'shield' ],
+    ['ring2',  'legs',   'potion' ],
   ];
 
   const slotMeta = {
@@ -29,6 +29,7 @@
     ring1:  { label: 'Ring L',  icon: '💍' },
     ring2:  { label: 'Ring R',  icon: '💍' },
     amulet: { label: 'Amulet',  icon: '📿' },
+    potion: { label: 'Potion',  icon: '🧪' },
   };
 
   const rarityColor = {
@@ -148,6 +149,12 @@
           {#each row as cellSlot}
             {#if cellSlot === 'empty'}
               <div class="body-cell empty-cell"></div>
+            {:else if cellSlot === 'potion'}
+              <div class="body-cell slot-cell potion-cell">
+                <span class="slot-label">Potion</span>
+                <span class="slot-empty-icon">🧪</span>
+                <span class="slot-empty-text">—</span>
+              </div>
             {:else}
               {@const slotData = getSlot(cellSlot)}
               {@const meta = slotMeta[cellSlot]}
@@ -348,11 +355,11 @@
   .body-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
+    gap: 6px;
   }
 
   .body-cell {
-    min-height: 80px;
+    min-height: 56px;
     border-radius: 8px;
   }
 
@@ -365,8 +372,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    padding: 10px 6px;
+    gap: 3px;
+    padding: 7px 4px;
     background-color: var(--color-bg-elevated);
     border: 1px dashed var(--color-border-subtle);
     position: relative;
@@ -378,36 +385,40 @@
     border-color: var(--color-border);
   }
 
+  .potion-cell {
+    border-color: rgba(80,180,80,0.35);
+  }
+
   .slot-label {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 1px;
   }
 
-  .slot-equip-icon, .slot-empty-icon { font-size: 22px; }
+  .slot-equip-icon, .slot-empty-icon { font-size: 15px; }
 
   .slot-equip-name {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     text-align: center;
     line-height: 1.2;
   }
 
   .slot-empty-text {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--color-text-muted);
   }
 
   .unequip-btn {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    top: 3px;
+    right: 3px;
     background: none;
     border: none;
     color: var(--color-text-muted);
     cursor: pointer;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1;
     padding: 2px;
     border-radius: 3px;

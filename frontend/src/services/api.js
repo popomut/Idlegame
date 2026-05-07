@@ -4,7 +4,7 @@ const API_ROOT =
   import.meta.env.VITE_API_BASE_URL ||
   (import.meta.env.DEV
     ? 'http://localhost:5000'
-    : 'https://idlegame-backend--popomut.replit.app');
+    : 'http://54.255.73.174:5000');
 export const API_BASE_URL = API_ROOT.replace(/\/$/, '');
 const API_BASE = `${API_BASE_URL}/api`;
 
