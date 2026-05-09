@@ -69,12 +69,17 @@ func main() {
         api.Post("/equipment/unequip", handlers.UnequipSlot)
         api.Post("/equipment/give", handlers.GiveEquipment)
 
-        // Map / combat routes
+        // Map routes (legacy turn-based combat)
         api.Post("/map/enter", handlers.EnterArea)
         api.Get("/map/session", handlers.GetCombatSession)
         api.Post("/map/resume", handlers.ResumeCombat)
         api.Post("/map/advance", handlers.AdvanceFight)
-        api.Post("/map/flee", handlers.FleeCombat)
+        api.Post("/map/flee", handlers.FleeMapCombat)
+
+        // Active combat (background, server-authoritative)
+        api.Post("/combat/start", handlers.StartCombat)
+        api.Get("/combat/status", handlers.GetCombatStatus)
+        api.Post("/combat/flee", handlers.FleeCombat)
 
         // Start server
         port := 5000

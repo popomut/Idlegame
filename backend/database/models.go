@@ -274,3 +274,39 @@ type ActivityLog struct {
 	
 	CreatedAt time.Time
 }
+
+// ActiveCombat tracks the current real-time combat session for a player.
+// Server is authoritative — all damage and HP are calculated here.
+// One row per user (unique). Previous sessions are overwritten on new combat start.
+type ActiveCombat struct {
+	ID     uint   `gorm:"primaryKey"`
+	UserID uint   `gorm:"uniqueIndex"`
+	Status string `gorm:"default:'active'"` // active, fled, dead
+
+	// Which zone the player entered (used to pick zone-specific monsters)
+	ZoneKey string
+
+	// Current enemy state — persisted so fight continues correctly on resume
+	CurrentEnemyKey   string
+	CurrentEnemyHP    int
+	CurrentEnemyMaxHP int
+
+	// Player HP during this combat session (separate from User.HP which is out-of-combat)
+	PlayerHPCurrent int
+
+	// Session totals (for display and reward awarding)
+	EnemiesDefeated  int   `gorm:"default:0"`
+	TotalXPGained    int64 `gorm:"default:0"`
+	TotalMoneyGained int64 `gorm:"default:0"`
+
+	// Tracks how much has already been awarded to user (prevents double-awarding)
+	XPAwarded    int64 `gorm:"default:0"`
+	MoneyAwarded int64 `gorm:"default:0"`
+
+	// Combat log — rolling window of last 50 entries (JSON array)
+	CombatLogsJSON string `gorm:"type:text;default:'[]'"`
+
+	// Timing — LastTickAt is the key field for calculating offline progress
+	StartedAt  time.Time
+	LastTickAt time.Time
+}

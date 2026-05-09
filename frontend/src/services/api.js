@@ -82,3 +82,9 @@ export const equipmentAPI = {
   unequip:    (slot) => api.post('/equipment/unequip', { slot }),
   give:       (equipmentKey) => api.post('/equipment/give', { equipment_key: equipmentKey }),
 };
+
+export const combatAPI = {
+  startCombat:  (zoneKey) => api.post('/combat/start', { zone_key: zoneKey }),
+  getStatus:    () => api.get('/combat/status'),
+  flee:         () => api.post('/combat/flee'),
+};

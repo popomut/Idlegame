@@ -85,6 +85,7 @@ func migrate() error {
 		&Area{},
 		&AreaMonster{},
 		&CombatSession{},
+		&ActiveCombat{},
 		&Equipment{},
 		&UserEquipment{},
 		&UserEquippedSlot{},

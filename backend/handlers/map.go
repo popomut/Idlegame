@@ -329,7 +329,7 @@ func AdvanceFight(c *fiber.Ctx) error {
 
 // FleeCombat abandons the current combat session.
 // POST /api/map/flee
-func FleeCombat(c *fiber.Ctx) error {
+func FleeMapCombat(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 	database.DB.Where("user_id = ?", userID).Delete(&database.CombatSession{})
 	return c.JSON(fiber.Map{"success": true})

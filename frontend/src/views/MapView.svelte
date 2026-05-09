@@ -1,51 +1,17 @@
 <script>
-  import { onMount, onDestroy, tick } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { mapAPI } from '../services/api.js';
-  import { backOverride } from '../stores/navigation.js';
-  import { player, addLogEntry } from '../stores/game.js';
+  import { backOverride, navigateTo } from '../stores/navigation.js';
+  import { startCombatSession } from '../stores/combat.js';
 
   // ── State ──────────────────────────────────────────────────────────────
-  let view = 'continents';    // 'continents' | 'areas' | 'combat'
+  let view = 'continents';    // 'continents' | 'areas'
   let continents = [];
   let selectedContinent = null;
   let pendingArea = null;
-  let combatData = null;      // CombatSessionResponse (session + current monster)
-  let fightResult = null;     // full FightResultResponse from server
-  // combatPhase: 'ready' → 'animating' → 'result'
-  let combatPhase = 'ready';
   let loading = true;
   let actionLoading = false;
   let errorMsg = '';
-
-  // ── Offline gains ───────────────────────────────────────────────────────
-  let offlineResult = null;   // ResumeResponse if offline fights happened
-
-  // ── Animation state ────────────────────────────────────────────────────
-  let visibleLog = [];        // log entries revealed so far
-  let dispPlayerHP = 0;       // HP shown in live bars (animated)
-  let dispMonsterHP = 0;
-  let monsterMaxHP = 0;
-  let animTimers = [];        // timeout IDs so we can cancel on flee
-  let autoContinueTimer = null; // timer for auto-advancing to next fight
-  let logEl = null;           // bind:this for auto-scroll
-
-  const STEP_MS = 900;        // time between each action
-
-  const difficultyColor = {
-    easy:    '#3a9a3a',
-    medium:  'var(--color-gold)',
-    hard:    'var(--color-danger-bright)',
-    extreme: '#cc44ff',
-  };
-
-  const attackTypeColor = {
-    physical:  'var(--color-text-muted)',
-    fire:      '#ff6633',
-    lightning: '#ffee33',
-    ice:       '#44ddff',
-    poison:    '#88ff44',
-    chaos:     '#cc44ff',
-  };
 
   // ── Load ───────────────────────────────────────────────────────────────
   onMount(async function () {
@@ -57,29 +23,6 @@
     } finally {
       loading = false;
     }
-    try {
-      const sRes = await mapAPI.resume();
-      const resumeData = sRes.data;
-
-      // Show offline popup if any fights happened while away
-      if (resumeData.offline_fights > 0 || resumeData.player_died) {
-        offlineResult = resumeData;
-        // Sync player store with new HP/XP/money from server
-        const { syncCharacter } = await import('../stores/game.js');
-        await syncCharacter();
-      }
-
-      if (resumeData.session && resumeData.session.status) {
-        combatData = resumeData.session;
-        for (const cont of continents) {
-          if (cont.areas && cont.areas.find(a => a.area_key === combatData.area_key)) {
-            selectedContinent = cont;
-            break;
-          }
-        }
-        view = 'combat';
-      }
-    } catch (_) { /* no active session */ }
   });
 
   // ── Navigation ─────────────────────────────────────────────────────────
@@ -88,159 +31,20 @@
   function openConfirm(area)     { pendingArea = area; }
   function closeConfirm()        { pendingArea = null; }
 
-  // ── Combat actions ─────────────────────────────────────────────────────
+  // ── Combat entry ────────────────────────────────────────────────────────
   async function enterArea() {
     if (!pendingArea) return;
     actionLoading = true;
     errorMsg = '';
-    resetCombatState();
     try {
-      const res = await mapAPI.enterArea(pendingArea.area_key);
-      combatData = res.data;
+      await startCombatSession(pendingArea.area_key);
       closeConfirm();
-      view = 'combat';
-      // Show the first monster card — user clicks Fight to begin.
-      // Auto-continue handles subsequent fights once the first is done.
+      navigateTo('combat');
     } catch (e) {
-      errorMsg = e?.response?.data?.error || 'Failed to enter area.';
+      errorMsg = e?.response?.data?.error || 'Failed to start combat.';
     } finally {
       actionLoading = false;
     }
-  }
-
-  async function fight() {
-    actionLoading = true;
-    errorMsg = '';
-    try {
-      const res = await mapAPI.advance();
-      fightResult = res.data;
-      startAnimation(fightResult);
-    } catch (e) {
-      errorMsg = 'Failed to advance fight.';
-      actionLoading = false;
-    }
-    // actionLoading cleared when animation finishes
-  }
-
-  // Step through the combat log one entry per STEP_MS milliseconds.
-  // HP bars update in real-time as each event is revealed.
-  function startAnimation(result) {
-    combatPhase = 'animating';
-    visibleLog = [];
-
-    // Initialise live HP trackers from before-fight values
-    dispPlayerHP  = result.player_hp_before;
-    dispMonsterHP = combatData.current_monster?.hp ?? 0;
-    monsterMaxHP  = combatData.current_monster?.hp ?? 1;
-
-    const log = result.log ?? [];
-
-    log.forEach(function (event, i) {
-      const id = setTimeout(async function () {
-        // Advance HP bars based on the event
-        if (event.actor === 'player' && event.damage > 0) {
-          dispMonsterHP = Math.max(0, dispMonsterHP - event.damage);
-        } else if (event.actor === 'monster' && event.damage > 0) {
-          dispPlayerHP = Math.max(0, dispPlayerHP - event.damage);
-        }
-
-        visibleLog = [...visibleLog, event];
-
-        // Auto-scroll the log box to the bottom
-        await tick();
-        if (logEl) logEl.scrollTop = logEl.scrollHeight;
-
-        // After last entry, finalise
-        if (i === log.length - 1) {
-          finishAnimation(result);
-        }
-      }, (i + 1) * STEP_MS);
-
-      animTimers.push(id);
-    });
-
-    // Safety: if log is empty, finish immediately
-    if (log.length === 0) finishAnimation(result);
-  }
-
-  function finishAnimation(result) {
-    // Snap HP bars to exact server values
-    dispPlayerHP  = result.player_hp_after;
-    dispMonsterHP = result.outcome === 'player_wins' ? 0 : (combatData.current_monster?.hp ?? 0);
-
-    // Update global player store and activity log
-    player.update(p => ({ ...p, hp: result.player_hp_after, maxHp: result.player_max_hp }));
-    if (result.xp_gained > 0) {
-      addLogEntry(`⚔️ Combat: +${result.xp_gained} XP, +${result.money_gained} credits`);
-    }
-
-    // Advance session data if player won
-    if (result.outcome === 'player_wins' && result.session) {
-      combatData = result.session;
-    }
-
-    combatPhase = 'result';
-    actionLoading = false;
-
-    // Auto-advance to next fight after showing rewards briefly
-    if (result.outcome === 'player_wins' && combatData.status !== 'complete') {
-      autoContinueTimer = setTimeout(() => {
-        autoContinueTimer = null;
-        fightResult = null;
-        combatPhase = 'ready';
-        visibleLog = [];
-        fight();
-      }, 2000);
-    }
-  }
-
-  function clearTimers() {
-    animTimers.forEach(id => clearTimeout(id));
-    animTimers = [];
-  }
-
-  function resetCombatState() {
-    if (autoContinueTimer) { clearTimeout(autoContinueTimer); autoContinueTimer = null; }
-    clearTimers();
-    fightResult = null;
-    combatPhase = 'ready';
-    visibleLog = [];
-    dispPlayerHP = 0;
-    dispMonsterHP = 0;
-  }
-
-  function continueAfterFight() {
-    if (!fightResult) return;
-    if (fightResult.outcome === 'player_dies') {
-      // Restore player HP to full on return to Base Camp
-      player.update(p => ({ ...p, hp: p.maxHp }));
-      combatData = null;
-      resetCombatState();
-      view = 'areas';
-    } else {
-      fightResult = null;
-      combatPhase = 'ready';
-      visibleLog = [];
-    }
-  }
-
-  async function flee() {
-    clearTimers();
-    actionLoading = true;
-    try {
-      await mapAPI.flee();
-    } catch (_) { /* ignore */ } finally {
-      combatData = null;
-      resetCombatState();
-      actionLoading = false;
-      view = 'areas';
-    }
-  }
-
-  function leaveZone() {
-    combatData = null;
-    resetCombatState();
-    view = 'areas';
   }
 
   // ── Back override ──────────────────────────────────────────────────────
@@ -249,75 +53,16 @@
       backOverride.set(null);
     } else if (view === 'areas') {
       backOverride.set({ fn: backToContinents, canGoBack: true });
-    } else if (view === 'combat') {
-      backOverride.set({ fn: () => { flee(); }, canGoBack: true });
     }
   }
 
   onDestroy(function () {
-    if (autoContinueTimer) { clearTimeout(autoContinueTimer); autoContinueTimer = null; }
-    clearTimers();
-    // Do NOT flee on destroy — flee deletes the session entirely, causing the
-    // zone selection screen on return. The session persists so resume() can
-    // restore combat correctly when the user comes back.
     backOverride.set(null);
   });
-
-  // ── Helpers ────────────────────────────────────────────────────────────
-  function fightProgress(cd) {
-    if (!cd) return 0;
-    if (cd.status === 'boss' || cd.status === 'complete') return 100;
-    return Math.round((cd.fight_count / cd.fights_before_boss) * 100);
-  }
-
-  function pct(val, max) {
-    if (!max || max <= 0) return 0;
-    return Math.round(Math.max(0, Math.min(100, (val / max) * 100)));
-  }
-
-  function actorLabel(actor) {
-    if (actor === 'player') return 'YOU';
-    if (actor === 'monster') return 'ENEMY';
-    return '⚙';
-  }
 </script>
 
 <!-- ── Map page ─────────────────────────────────────────────────────────── -->
 <div class="view-map">
-
-<!-- ── Offline gains popup ───────────────────────────────────────────────── -->
-{#if offlineResult}
-  <div class="offline-backdrop">
-    <div class="offline-popup">
-      <div class="offline-icon">{offlineResult.player_died ? '💀' : '⚔️'}</div>
-      <h2 class="offline-title">
-        {offlineResult.player_died ? 'Defeated While Away' : 'Combat Progress While Away'}
-      </h2>
-      <p class="offline-time">
-        {Math.round(offlineResult.offline_seconds / 60)} min offline
-        · {offlineResult.offline_fights} fight{offlineResult.offline_fights !== 1 ? 's' : ''}
-      </p>
-      <div class="offline-rewards">
-        {#if offlineResult.offline_monsters > 0}
-          <span class="reward-pill monster-pill">⚔️ {offlineResult.offline_monsters} monster{offlineResult.offline_monsters !== 1 ? 's' : ''}</span>
-        {/if}
-        {#if offlineResult.offline_bosses > 0}
-          <span class="reward-pill boss-pill-o">👑 {offlineResult.offline_bosses} boss{offlineResult.offline_bosses !== 1 ? 'es' : ''}</span>
-        {/if}
-        {#if offlineResult.offline_xp > 0}
-          <span class="reward-pill xp-pill">+{offlineResult.offline_xp} XP</span>
-        {/if}
-        {#if offlineResult.offline_money > 0}
-          <span class="reward-pill money-pill">+{offlineResult.offline_money} ¢</span>
-        {/if}
-        {#if offlineResult.player_died}
-          <span class="reward-pill death-pill">💉 HP Restored</span>
-        {/if}
-      </div>
-      <button class="offline-btn" on:click={() => offlineResult = null}>Awesome!</button>
-    </div>
-  </div>
-{/if}
 
   {#if loading}
     <div class="loading">Loading map data…</div>
@@ -340,7 +85,7 @@
             <span class="cont-desc">{cont.description}</span>
           </div>
           <div class="cont-footer">
-            <span class="diff-badge" style="color:{difficultyColor[cont.difficulty]}">{cont.difficulty.toUpperCase()}</span>
+            <span class="diff-badge">{cont.difficulty.toUpperCase()}</span>
             <span class="area-count">{cont.areas?.length ?? 0} zones</span>
           </div>
         </button>
@@ -366,181 +111,17 @@
             <span class="area-icon">{area.icon}</span>
             <div class="area-info">
               <span class="area-name">{area.name}</span>
-              <span class="area-diff" style="color:{difficultyColor[area.difficulty]}">{area.difficulty.toUpperCase()}</span>
+              <span class="area-diff">{area.difficulty.toUpperCase()}</span>
             </div>
             <span class="area-enter">Enter ›</span>
           </div>
           <p class="area-desc">{area.description}</p>
           <div class="area-meta">
-            <span class="meta-pill">⚔️ {area.fights_before_boss} fights</span>
-            <span class="meta-pill boss-pill">👑 Boss: {area.boss_monster?.name ?? area.boss_monster_key}</span>
+            <span class="meta-pill">⚔️ Endless combat</span>
           </div>
         </button>
       {/each}
     </div>
-
-  {:else if view === 'combat' && combatData}
-    <!-- ── Combat arena ──────────────────────────────────────────────── -->
-    <div class="page-header">
-      {#if combatData.status !== 'complete'}
-        <button class="back-btn" on:click={flee} disabled={actionLoading}>🏃 Flee</button>
-      {/if}
-      <div>
-        <h1 class="page-title">{combatData.area_icon} {combatData.area_name}</h1>
-        <p class="page-subtitle">
-          {#if combatData.status === 'boss'}⚠️ BOSS FIGHT
-          {:else if combatData.status === 'complete'}✅ ZONE CLEARED
-          {:else}Fight {combatData.fight_count + 1} of {combatData.fights_before_boss}
-          {/if}
-        </p>
-      </div>
-    </div>
-
-    <!-- Zone progress bar -->
-    {#if combatData.status !== 'complete'}
-      <div class="progress-track">
-        <div class="progress-fill" style="width:{fightProgress(combatData)}%"
-          class:progress-boss={combatData.status === 'boss'}></div>
-        <span class="progress-label">
-          {combatData.status === 'boss' ? '⚔️ Boss' : `${combatData.fight_count}/${combatData.fights_before_boss}`}
-        </span>
-      </div>
-    {/if}
-
-    {#if combatData.status === 'complete'}
-      <!-- ── Zone cleared ───────────────────────────────────────────── -->
-      <div class="card victory-card">
-        <div class="victory-icon">🏆</div>
-        <h2 class="victory-title">Zone Cleared!</h2>
-        <p class="victory-sub">You've conquered {combatData.area_name}. Good work, Operative.</p>
-        <button class="action-btn gold-btn" on:click={leaveZone}>Leave Zone</button>
-      </div>
-
-    {:else if combatPhase === 'animating' || combatPhase === 'result'}
-      <!-- ── Live combat view (animating + result) ───────────────────── -->
-      {@const m = (fightResult?.session?.current_monster) ?? combatData.current_monster}
-      {@const playerMaxHP = fightResult?.player_max_hp ?? $player.maxHp ?? 100}
-
-      <!-- HP bars side by side -->
-      <div class="card live-combat-card">
-        <!-- Player side -->
-        <div class="combatant-block">
-          <div class="combatant-label you-label">⚡ YOU</div>
-          <div class="hp-label-row">
-            <span>HP</span>
-            <span>{Math.max(0, dispPlayerHP)} / {playerMaxHP}</span>
-          </div>
-          <div class="hp-track">
-            <div class="hp-fill" style="width:{pct(dispPlayerHP, playerMaxHP)}%"
-              class:hp-low={pct(dispPlayerHP, playerMaxHP) < 25}></div>
-          </div>
-        </div>
-
-        <div class="vs-badge">VS</div>
-
-        <!-- Monster side -->
-        {#if combatData.current_monster}
-          {@const mon = combatData.current_monster}
-          <div class="combatant-block">
-            <div class="combatant-label enemy-label">{mon.icon} {mon.name}</div>
-            <div class="hp-label-row">
-              <span>HP</span>
-              <span>{Math.max(0, dispMonsterHP)} / {monsterMaxHP}</span>
-            </div>
-            <div class="hp-track enemy-track">
-              <div class="hp-fill enemy-fill" style="width:{pct(dispMonsterHP, monsterMaxHP)}%"
-                class:hp-low={pct(dispMonsterHP, monsterMaxHP) < 25}></div>
-            </div>
-          </div>
-        {/if}
-      </div>
-
-      <!-- Action feed (live log) -->
-      <div class="combat-log live-log" bind:this={logEl}>
-        {#each visibleLog as event}
-          <div class="log-row log-entry-in"
-            class:log-player={event.actor === 'player'}
-            class:log-monster={event.actor === 'monster'}
-            class:log-system={event.actor === 'system'}>
-            <span class="log-actor">{actorLabel(event.actor)}</span>
-            <span class="log-msg">{event.message}</span>
-            {#if event.damage > 0}
-              <span class="dmg-badge" class:dmg-player={event.actor === 'player'} class:dmg-monster={event.actor === 'monster'}>
-                -{event.damage}
-              </span>
-            {/if}
-          </div>
-        {/each}
-        {#if combatPhase === 'animating'}
-          <div class="log-typing">▌</div>
-        {/if}
-      </div>
-
-      <!-- Result actions (shown only when animation is done) -->
-      {#if combatPhase === 'result' && fightResult}
-        <div class="card result-card"
-          class:result-win={fightResult.outcome === 'player_wins'}
-          class:result-die={fightResult.outcome === 'player_dies'}>
-          <div class="result-banner">
-            {fightResult.outcome === 'player_wins' ? '⚔️ VICTORY' : '💀 DEFEATED'}
-          </div>
-          {#if fightResult.outcome === 'player_wins'}
-            <div class="reward-row">
-              {#if fightResult.xp_gained > 0}<span class="reward-pill xp-pill">+{fightResult.xp_gained} XP</span>{/if}
-              {#if fightResult.money_gained > 0}<span class="reward-pill money-pill">+{fightResult.money_gained} ¢</span>{/if}
-            </div>
-            {#if combatData.status !== 'complete'}
-              <p class="auto-advance-msg">⏳ Next fight starting…</p>
-            {/if}
-          {/if}
-          <div class="result-actions">
-            {#if fightResult.outcome === 'player_dies'}
-              <button class="action-btn danger-btn" on:click={continueAfterFight}>🏕️ Return to Base Camp</button>
-            {/if}
-          </div>
-        </div>
-      {/if}
-
-    {:else if combatData.current_monster}
-      {@const m = combatData.current_monster}
-      <!-- ── Ready phase: monster card ────────────────────────────────── -->
-      <div class="card monster-card" class:boss-card={combatData.status === 'boss'}>
-        {#if combatData.status === 'boss'}
-          <div class="boss-banner">👑 BOSS ENCOUNTER</div>
-        {/if}
-        <div class="monster-header">
-          <span class="monster-icon">{m.icon}</span>
-          <div class="monster-info">
-            <span class="monster-name">{m.name}</span>
-            <span class="monster-desc">{m.description}</span>
-          </div>
-        </div>
-        <div class="monster-stats">
-          <div class="mstat"><span class="mstat-label">HP</span><span class="mstat-val">{m.hp}</span></div>
-          <div class="mstat"><span class="mstat-label">DEX</span><span class="mstat-val">{m.dex}</span></div>
-          <div class="mstat">
-            <span class="mstat-label">ATK</span>
-            <span class="mstat-val" style="color:{attackTypeColor[m.attack_type]}">{m.attack_value} {m.attack_type}</span>
-          </div>
-          <div class="mstat"><span class="mstat-label">DEF</span><span class="mstat-val">{m.phys_def}</span></div>
-        </div>
-        {#if m.resist_fire || m.resist_lightning || m.resist_ice || m.resist_poison || m.resist_chaos}
-          <div class="resist-row">
-            {#if m.resist_fire}      <span class="resist-pill" style="color:#ff6633">🔥 {m.resist_fire}%</span>{/if}
-            {#if m.resist_lightning} <span class="resist-pill" style="color:#ffee33">⚡ {m.resist_lightning}%</span>{/if}
-            {#if m.resist_ice}       <span class="resist-pill" style="color:#44ddff">❄️ {m.resist_ice}%</span>{/if}
-            {#if m.resist_poison}    <span class="resist-pill" style="color:#88ff44">☠️ {m.resist_poison}%</span>{/if}
-            {#if m.resist_chaos}     <span class="resist-pill" style="color:#cc44ff">🌀 {m.resist_chaos}%</span>{/if}
-          </div>
-        {/if}
-        <div class="combat-actions">
-          <button class="action-btn danger-btn" on:click={fight} disabled={actionLoading}>
-            {actionLoading ? '…' : '⚔️ Fight'}
-          </button>
-          <button class="action-btn" on:click={flee} disabled={actionLoading}>🏃 Flee</button>
-        </div>
-      </div>
-    {/if}
   {/if}
 </div>
 
@@ -553,7 +134,7 @@
         <span class="popup-area-icon">{pendingArea.icon}</span>
         <div>
           <div class="popup-area-name">{pendingArea.name}</div>
-          <div class="popup-area-diff" style="color:{difficultyColor[pendingArea.difficulty]}">{pendingArea.difficulty.toUpperCase()}</div>
+          <div class="popup-area-diff">{pendingArea.difficulty.toUpperCase()}</div>
         </div>
       </div>
 
@@ -570,23 +151,11 @@
         </div>
       </div>
 
-      <div class="popup-section">
-        <div class="popup-section-label">Boss</div>
-        {#if pendingArea.boss_monster}
-          <span class="popup-boss-pill">👑 {pendingArea.boss_monster.icon} {pendingArea.boss_monster.name}</span>
-        {/if}
-      </div>
-
-      <div class="popup-section">
-        <div class="popup-section-label">Fights before boss</div>
-        <span class="popup-fight-count">⚔️ {pendingArea.fights_before_boss} fights</span>
-      </div>
-
       {#if errorMsg}<div class="error-banner" style="margin-top:4px">{errorMsg}</div>{/if}
 
       <div class="popup-actions">
         <button class="popup-btn enter-btn" on:click={enterArea} disabled={actionLoading}>
-          {actionLoading ? 'Deploying…' : '🚀 Enter Zone'}
+          {actionLoading ? 'Starting…' : '⚔️ Enter Zone'}
         </button>
         <button class="popup-btn cancel-btn" on:click={closeConfirm}>Cancel</button>
       </div>
