@@ -168,10 +168,13 @@ func GetCombatStatus(c *fiber.Ctx) error {
 	newXP := session.TotalXPGained - session.XPAwarded
 	newMoney := session.TotalMoneyGained - session.MoneyAwarded
 	if newXP > 0 || newMoney > 0 {
-		database.DB.Model(&user).Updates(map[string]interface{}{
-			"xp":    gorm.Expr("xp + ?", newXP),
-			"money": gorm.Expr("money + ?", newMoney),
-		})
+		// Use AwardXP to handle level-up logic, then separately update money
+		if newXP > 0 {
+			AwardXP(userID, newXP)
+		}
+		if newMoney > 0 {
+			database.DB.Model(&user).Update("money", gorm.Expr("money + ?", newMoney))
+		}
 		session.XPAwarded = session.TotalXPGained
 		session.MoneyAwarded = session.TotalMoneyGained
 	}
@@ -250,10 +253,13 @@ func FleeCombat(c *fiber.Ctx) error {
 	newXP := session.TotalXPGained - session.XPAwarded
 	newMoney := session.TotalMoneyGained - session.MoneyAwarded
 	if newXP > 0 || newMoney > 0 {
-		database.DB.Model(&user).Updates(map[string]interface{}{
-			"xp":    gorm.Expr("xp + ?", newXP),
-			"money": gorm.Expr("money + ?", newMoney),
-		})
+		// Use AwardXP to handle level-up logic, then separately update money
+		if newXP > 0 {
+			AwardXP(userID, newXP)
+		}
+		if newMoney > 0 {
+			database.DB.Model(&user).Update("money", gorm.Expr("money + ?", newMoney))
+		}
 		session.XPAwarded = session.TotalXPGained
 		session.MoneyAwarded = session.TotalMoneyGained
 	}

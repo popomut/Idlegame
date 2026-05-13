@@ -548,12 +548,10 @@ func seedEquipment() error {
 		var existing Equipment
 		result := DB.Where("equipment_key = ?", item.EquipmentKey).First(&existing)
 		if result.Error != nil {
+			// Equipment doesn't exist, create it
 			DB.Create(&item)
-		} else {
-			item.ID = existing.ID
-			item.CreatedAt = existing.CreatedAt
-			DB.Save(&item)
 		}
+		// If it exists, skip it (preserve any admin modifications)
 	}
 	return nil
 }
