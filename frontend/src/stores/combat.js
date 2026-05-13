@@ -26,6 +26,8 @@ const defaultState = {
 export const combatState = writable({ ...defaultState });
 
 let pollTimer = null;
+let visibilityListener = null;
+let lastKnownPageVisible = true;
 
 // ── Actions ──────────────────────────────────────────────────────────────────
 
@@ -88,11 +90,58 @@ export async function fetchCombatStatus() {
 
 export function startPolling() {
   stopPolling();
+  
+  // Set up visibility change listener
+  if (typeof document !== 'undefined' && !visibilityListener) {
+    visibilityListener = () => {
+      if (document.hidden) {
+        // Page is hidden (user switched tabs)
+        lastKnownPageVisible = false;
+        console.log('[Combat] Page hidden - stopping polling');
+        // Stop polling while hidden to save resources
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      } else {
+        // Page is visible again (user returned to tab)
+        lastKnownPageVisible = true;
+        console.log('[Combat] Page visible - fetching status immediately');
+        // Fetch status immediately to catch up with offline progress
+        const state = get(combatState);
+        if (state.isActive) {
+          console.log('[Combat] Combat is active, calling fetchCombatStatus()');
+          fetchCombatStatus().then(() => {
+            console.log('[Combat] fetchCombatStatus() completed');
+          });
+          // Restart polling
+          resumePolling();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', visibilityListener);
+    console.log('[Combat] Visibility listener attached');
+  }
+  
+  // Start the polling interval
+  resumePolling();
+}
+
+function resumePolling() {
+  // Don't start if already running
+  if (pollTimer) {
+    console.log('[Combat] Polling already running, skipping resume');
+    return;
+  }
+  
+  console.log('[Combat] Starting polling interval');
   pollTimer = setInterval(() => {
     const state = get(combatState);
     if (state.isActive) {
+      console.log('[Combat] Polling: fetching status');
       fetchCombatStatus();
     } else {
+      console.log('[Combat] Combat not active, stopping polling');
       stopPolling();
     }
   }, POLL_INTERVAL_MS);
@@ -102,6 +151,11 @@ export function stopPolling() {
   if (pollTimer) {
     clearInterval(pollTimer);
     pollTimer = null;
+  }
+  // Remove visibility listener when stopping polling
+  if (visibilityListener && typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', visibilityListener);
+    visibilityListener = null;
   }
 }
 

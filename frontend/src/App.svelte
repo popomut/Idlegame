@@ -7,6 +7,7 @@
   import { loadConfigFromStorage } from './stores/config.js';
   import { theme } from './stores/theme.js';
   import { syncCharacter } from './stores/game.js';
+  import { combatState, fetchCombatStatus } from './stores/combat.js';
 
   import TopBar from './components/TopBar.svelte';
   import Sidebar from './components/Sidebar.svelte';
@@ -43,6 +44,23 @@
       // Load character stats and mining status on app load
       await syncCharacter();
       await initMiningStatus();
+    }
+
+    // Global page visibility handler: when user returns from background,
+    // sync combat status immediately to catch up with offline progress
+    if (typeof document !== 'undefined') {
+      const handlePageReturn = async () => {
+        if (!document.hidden && $combatState.isActive) {
+          // Page is visible and combat is active, fetch latest status
+          await fetchCombatStatus();
+        }
+      };
+      document.addEventListener('visibilitychange', handlePageReturn);
+
+      // Cleanup listener on unmount
+      return () => {
+        document.removeEventListener('visibilitychange', handlePageReturn);
+      };
     }
   });
 </script>

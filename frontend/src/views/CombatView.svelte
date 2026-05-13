@@ -182,7 +182,7 @@
         <h2 class="card-title">Combat Log</h2>
       </div>
       <ul class="combat-log">
-        {#each $combatState.recentLogs as entry (entry.timestamp + entry.message)}
+        {#each $combatState.recentLogs as entry, i}
           <li class="log-entry {logTypeClass(entry.type)}">{entry.message}</li>
         {/each}
         {#if $combatState.recentLogs.length === 0}
