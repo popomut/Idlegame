@@ -111,6 +111,10 @@
     }
   }
 
+  function isEquipped(item) {
+    return slots.some(s => s.user_equipment_id === item.user_equipment_id);
+  }
+
   function modLabel(mod) {
     const labels = {
       str: 'STR', int: 'INT', dex: 'DEX',
@@ -164,8 +168,13 @@
               >
                 <span class="slot-label">{meta.label}</span>
                 {#if slotData.equipment}
-                  <span class="slot-equip-icon">{slotData.equipment.icon}</span>
-                  <span class="slot-equip-name" style="color:{rarityColor[slotData.equipment.rarity] || 'inherit'}">{slotData.equipment.name}</span>
+                  <button class="slot-item-btn" on:click={() => {
+                    const bagItem = bag.find(b => b.user_equipment_id === slotData.user_equipment_id);
+                    if (bagItem) openPopup(bagItem);
+                  }} title="View item details">
+                    <span class="slot-equip-icon">{slotData.equipment.icon}</span>
+                    <span class="slot-equip-name" style="color:{rarityColor[slotData.equipment.rarity] || 'inherit'}">{slotData.equipment.name}</span>
+                  </button>
                   <button class="unequip-btn" on:click={(e) => unequipSlot(cellSlot, e)} title="Unequip">✕</button>
                 {:else}
                   <span class="slot-empty-icon">{meta.icon}</span>
@@ -194,7 +203,7 @@
       {:else}
         <div class="bag-list">
           {#each sortedBag as item}
-            <button class="bag-item" on:click={() => openPopup(item)}>
+            <button class="bag-item" class:bag-item-equipped={isEquipped(item)} on:click={() => openPopup(item)}>
               <span class="bag-icon">{item.equipment.icon}</span>
               <div class="bag-info">
                 <span class="bag-name" style="color:{rarityColor[item.equipment.rarity] || 'inherit'}">{item.equipment.name}</span>
@@ -204,6 +213,9 @@
                 <span class="bag-stat atk">ATK {item.equipment.base_attack}</span>
               {:else if item.equipment.base_defence > 0}
                 <span class="bag-stat def">DEF {item.equipment.base_defence}</span>
+              {/if}
+              {#if isEquipped(item)}
+                <span class="bag-equipped">Equipped</span>
               {/if}
               <span class="bag-chevron">›</span>
             </button>
@@ -398,6 +410,24 @@
 
   .slot-equip-icon, .slot-empty-icon { font-size: 15px; }
 
+  .slot-item-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+    color: inherit;
+    transition: opacity var(--transition-fast);
+  }
+
+  .slot-item-btn:hover {
+    opacity: 0.8;
+  }
+
   .slot-equip-name {
     font-size: 10px;
     font-weight: 600;
@@ -510,6 +540,27 @@
   .bag-stat.def { color: var(--color-magic-bright);  background: rgba(60,120,200,0.12); }
 
   .bag-chevron { color: var(--color-text-muted); font-size: 18px; }
+
+  .bag-equipped {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(0, 200, 150, 0.15);
+    color: #00d4a0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  .bag-item-equipped {
+    background-color: rgba(0, 200, 150, 0.08);
+    border-color: rgba(0, 200, 150, 0.3);
+  }
+
+  .bag-item-equipped:hover {
+    background-color: rgba(0, 200, 150, 0.12);
+  }
 
   /* ── Popup ──────────────────────────────────────────────────────────── */
   .popup-backdrop {
