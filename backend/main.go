@@ -81,6 +81,18 @@ func main() {
         api.Get("/combat/status", handlers.GetCombatStatus)
         api.Post("/combat/flee", handlers.FleeCombat)
 
+        // Admin equipment management (development only — delete before production)
+        api.Get("/admin/equipment", handlers.AdminGetAllEquipment)
+        api.Post("/admin/equipment", handlers.AdminCreateEquipment)
+        api.Put("/admin/equipment/:id", handlers.AdminUpdateEquipment)
+        api.Delete("/admin/equipment/:id", handlers.AdminDeleteEquipment)
+
+        // Admin monster management (development only — delete before production)
+        api.Get("/admin/monsters", handlers.AdminGetAllMonsters)
+        api.Post("/admin/monsters", handlers.AdminCreateMonster)
+        api.Put("/admin/monsters/:id", handlers.AdminUpdateMonster)
+        api.Delete("/admin/monsters/:id", handlers.AdminDeleteMonster)
+
         // Start server
         port := 5000
         fmt.Printf("🚀 Server running on http://0.0.0.0:%d\n", port)

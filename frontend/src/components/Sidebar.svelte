@@ -13,6 +13,7 @@
     { id: 'shop',         label: 'Black Market',   icon: '&#x1F4B0;' },
     { id: 'achievements', label: 'Commendations',  icon: '&#x1F396;&#xFE0F;' },
     { id: 'settings',     label: 'Ops Center',     icon: '&#x2699;&#xFE0F;' },
+    { id: 'admin',        label: 'Admin Panel',    icon: '&#x1F510;' },
   ];
 
   function handleMenuClick(itemId) {

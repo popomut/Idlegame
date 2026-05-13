@@ -25,6 +25,7 @@
   import ShopView from './views/ShopView.svelte';
   import AchievementsView from './views/AchievementsView.svelte';
   import SettingsView from './views/SettingsView.svelte';
+  import AdminView from './views/AdminView.svelte';
 
   onMount(async function () {
     // Subscribe to theme changes and apply to DOM
@@ -90,6 +91,8 @@
       <AchievementsView />
     {:else if $currentPage === 'settings'}
       <SettingsView />
+    {:else if $currentPage === 'admin'}
+      <AdminView />
     {/if}
   </main>
 

@@ -255,3 +255,157 @@ func GiveEquipment(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"success": true, "user_equipment_id": ue.ID})
 }
 
+// ── Admin endpoints (for development only — delete before production) ──────────
+
+// AdminGetAllEquipment returns all equipment from the master table.
+// GET /api/admin/equipment
+func AdminGetAllEquipment(c *fiber.Ctx) error {
+	var items []database.Equipment
+	if err := database.DB.Order("sort_order ASC, id ASC").Find(&items).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to load equipment"})
+	}
+
+	result := make([]EquipmentResponse, 0, len(items))
+	for _, e := range items {
+		result = append(result, toEquipmentResponse(e))
+	}
+	return c.JSON(result)
+}
+
+// AdminCreateEquipment creates a new equipment item.
+// POST /api/admin/equipment
+func AdminCreateEquipment(c *fiber.Ctx) error {
+	var body struct {
+		EquipmentKey string `json:"equipment_key"`
+		Name         string `json:"name"`
+		Icon         string `json:"icon"`
+		Description  string `json:"description"`
+		Slot         string `json:"slot"`
+		Rarity       string `json:"rarity"`
+		BaseAttack   int    `json:"base_attack"`
+		AttackType   string `json:"attack_type"`
+		BaseDefence  int    `json:"base_defence"`
+		Modifiers    []EquipmentModifier `json:"modifiers"`
+		LevelRequired int    `json:"level_required"`
+		SortOrder    int    `json:"sort_order"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	// Validate required fields
+	if body.EquipmentKey == "" || body.Name == "" || body.Slot == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "equipment_key, name, and slot are required"})
+	}
+
+	// Convert modifiers to JSON
+	modifiersJSON := "[]"
+	if len(body.Modifiers) > 0 {
+		if data, err := json.Marshal(body.Modifiers); err == nil {
+			modifiersJSON = string(data)
+		}
+	}
+
+	equip := database.Equipment{
+		EquipmentKey:  body.EquipmentKey,
+		Name:          body.Name,
+		Icon:          body.Icon,
+		Description:   body.Description,
+		Slot:          body.Slot,
+		Rarity:        body.Rarity,
+		BaseAttack:    body.BaseAttack,
+		AttackType:    body.AttackType,
+		BaseDefence:   body.BaseDefence,
+		ModifiersJSON: modifiersJSON,
+		LevelRequired: body.LevelRequired,
+		SortOrder:     body.SortOrder,
+		CreatedAt:     time.Now(),
+	}
+
+	if err := database.DB.Create(&equip).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to create equipment"})
+	}
+
+	return c.Status(201).JSON(toEquipmentResponse(equip))
+}
+
+// AdminUpdateEquipment updates an existing equipment item.
+// PUT /api/admin/equipment/:id
+func AdminUpdateEquipment(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	var equip database.Equipment
+	if err := database.DB.First(&equip, id).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Equipment not found"})
+	}
+
+	var body struct {
+		EquipmentKey string `json:"equipment_key"`
+		Name         string `json:"name"`
+		Icon         string `json:"icon"`
+		Description  string `json:"description"`
+		Slot         string `json:"slot"`
+		Rarity       string `json:"rarity"`
+		BaseAttack   int    `json:"base_attack"`
+		AttackType   string `json:"attack_type"`
+		BaseDefence  int    `json:"base_defence"`
+		Modifiers    []EquipmentModifier `json:"modifiers"`
+		LevelRequired int    `json:"level_required"`
+		SortOrder    int    `json:"sort_order"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	// Update fields
+	if body.EquipmentKey != "" {
+		equip.EquipmentKey = body.EquipmentKey
+	}
+	if body.Name != "" {
+		equip.Name = body.Name
+	}
+	equip.Icon = body.Icon
+	equip.Description = body.Description
+	if body.Slot != "" {
+		equip.Slot = body.Slot
+	}
+	equip.Rarity = body.Rarity
+	equip.BaseAttack = body.BaseAttack
+	equip.AttackType = body.AttackType
+	equip.BaseDefence = body.BaseDefence
+	equip.LevelRequired = body.LevelRequired
+	equip.SortOrder = body.SortOrder
+
+	// Convert modifiers to JSON
+	if len(body.Modifiers) > 0 {
+		if data, err := json.Marshal(body.Modifiers); err == nil {
+			equip.ModifiersJSON = string(data)
+		}
+	} else {
+		equip.ModifiersJSON = "[]"
+	}
+
+	if err := database.DB.Save(&equip).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to update equipment"})
+	}
+
+	return c.JSON(toEquipmentResponse(equip))
+}
+
+// AdminDeleteEquipment deletes an equipment item.
+// DELETE /api/admin/equipment/:id
+func AdminDeleteEquipment(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	var equip database.Equipment
+	if err := database.DB.First(&equip, id).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Equipment not found"})
+	}
+
+	if err := database.DB.Delete(&equip).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete equipment"})
+	}
+
+	return c.JSON(fiber.Map{"success": true, "message": "Equipment deleted"})
+}
+

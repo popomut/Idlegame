@@ -189,72 +189,7 @@
     font-size: 13px;
   }
 
-  /* ── Offline gains popup ───────────────────────────────────────────────── */
-  .offline-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.72);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
 
-  .offline-popup {
-    background: var(--color-bg-panel);
-    border: 2px solid var(--color-gold-dim);
-    border-radius: 14px;
-    padding: 28px 24px;
-    text-align: center;
-    max-width: 360px;
-    width: 90%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .offline-icon { font-size: 52px; line-height: 1; }
-
-  .offline-title {
-    font-family: var(--font-heading);
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--color-text-heading);
-    margin: 0;
-  }
-
-  .offline-time {
-    font-size: 13px;
-    color: var(--color-text-muted);
-    margin: 0;
-  }
-
-  .offline-rewards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-  }
-
-  .death-pill { color: var(--color-danger-bright); border-color: var(--color-danger); background: rgba(200,50,50,0.1); }
-  .monster-pill { color: var(--color-text-muted); border-color: var(--color-border); background: rgba(255,255,255,0.05); }
-  .boss-pill-o { color: #cc44ff; border-color: #8822aa44; background: rgba(136,34,170,0.1); }
-
-  .offline-btn {
-    margin-top: 4px;
-    padding: 10px 28px;
-    background: var(--color-gold-dim);
-    color: #000;
-    border: none;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 15px;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .offline-btn:hover { background: var(--color-gold-bright); }
 
   .page-header {
     display: flex;
