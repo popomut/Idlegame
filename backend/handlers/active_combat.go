@@ -350,6 +350,9 @@ func processCombatRounds(session *database.ActiveCombat, user *database.User, eq
 					})
 				}
 
+				// Process monster drops
+				processMonsterDrops(user.ID, currentEnemy.ID, now, &logs)
+
 				// Spawn next enemy
 				currentEnemy = combatPickRandom(monsters)
 				session.CurrentEnemyKey = currentEnemy.MonsterKey
@@ -541,6 +544,43 @@ func combatCeilDiv(a, b int64) int64 {
 		return 0
 	}
 	return int64(math.Ceil(float64(a) / float64(b)))
+}
+
+func processMonsterDrops(userID uint, monsterID uint, now time.Time, logs *[]CombatLogEntry) {
+	var drops []database.MonsterDrop
+	database.DB.Where("monster_id = ? AND drop_type = ?", monsterID, "equipment").Find(&drops)
+
+	for _, drop := range drops {
+		// Roll the dice for drop chance
+		if rand.Float64() > drop.DropRate {
+			continue // Drop didn't proc
+		}
+
+		// Find the equipment by key
+		var equip database.Equipment
+		if err := database.DB.Where("equipment_key = ?", drop.DropKey).First(&equip).Error; err != nil {
+			continue // Equipment not found
+		}
+
+		// Grant the equipment to the player
+		ue := database.UserEquipment{
+			UserID:      userID,
+			EquipmentID: equip.ID,
+			ObtainedAt:  now,
+		}
+		if err := database.DB.Create(&ue).Error; err != nil {
+			continue // Failed to create
+		}
+
+		// Add log entry with "loot" type for special styling
+		if len(*logs) < combatMaxLogs {
+			*logs = append(*logs, CombatLogEntry{
+				Timestamp: now.UnixMilli(),
+				Type:      "loot",
+				Message:   fmt.Sprintf("🎁 Loot dropped! You obtained %s %s", equip.Icon, equip.Name),
+			})
+		}
+	}
 }
 
 func buildStatusResponse(

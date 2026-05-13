@@ -32,6 +32,12 @@ export const adminAPI = {
   createOre: (data) => api.post('/admin/ores', data),
   updateOre: (id, data) => api.put(`/admin/ores/${id}`, data),
   deleteOre: (id) => api.delete(`/admin/ores/${id}`),
+
+  // Monster drops endpoints
+  getAllMonsterDrops: () => api.get('/admin/monster-drops'),
+  createMonsterDrop: (data) => api.post('/admin/monster-drops', data),
+  updateMonsterDrop: (id, data) => api.put(`/admin/monster-drops/${id}`, data),
+  deleteMonsterDrop: (id) => api.delete(`/admin/monster-drops/${id}`),
 };
 
 

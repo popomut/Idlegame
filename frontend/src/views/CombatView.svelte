@@ -6,6 +6,16 @@
 
   let fleeLoading = false;
 
+  function getLootedEquipment() {
+    return $combatState.recentLogs
+      .filter(entry => entry.type === 'loot')
+      .map((entry, idx) => ({
+        id: idx,
+        message: entry.message,
+        obtained: entry.timestamp,
+      }));
+  }
+
   function hpPercent(current, max) {
     if (!max || max <= 0) return 0;
     return Math.max(0, Math.min(100, Math.round((current / max) * 100)));
@@ -37,6 +47,7 @@
       spawn: 'log-spawn',
       death: 'log-death',
       info: 'log-info',
+      loot: 'log-loot',
     }[type] || 'log-info';
   }
 
@@ -175,20 +186,37 @@
       {/if}
     </div>
 
-    <!-- ── Combat log ─────────────────────────────────────────────────── -->
-    <div class="card log-card">
-      <div class="card-header">
-        <span class="card-icon">📋</span>
-        <h2 class="card-title">Combat Log</h2>
+    <!-- ── Combat log and Loot ──────────────────────────────────── -->
+    <div class="logs-container">
+      <div class="card log-card">
+        <div class="card-header">
+          <span class="card-icon">📋</span>
+          <h2 class="card-title">Combat Log</h2>
+        </div>
+        <ul class="combat-log">
+          {#each $combatState.recentLogs as entry, i}
+            <li class="log-entry {logTypeClass(entry.type)}">{entry.message}</li>
+          {/each}
+          {#if $combatState.recentLogs.length === 0}
+            <li class="log-entry log-info">No combat events yet…</li>
+          {/if}
+        </ul>
       </div>
-      <ul class="combat-log">
-        {#each $combatState.recentLogs as entry, i}
-          <li class="log-entry {logTypeClass(entry.type)}">{entry.message}</li>
-        {/each}
-        {#if $combatState.recentLogs.length === 0}
-          <li class="log-entry log-info">No combat events yet…</li>
-        {/if}
-      </ul>
+
+      <div class="card loot-card">
+        <div class="card-header">
+          <span class="card-icon">🎁</span>
+          <h2 class="card-title">Loot Obtained</h2>
+        </div>
+        <ul class="loot-list">
+          {#each getLootedEquipment() as item}
+            <li class="loot-item">{item.message}</li>
+          {/each}
+          {#if getLootedEquipment().length === 0}
+            <li class="loot-item loot-empty">No loot yet…</li>
+          {/if}
+        </ul>
+      </div>
     </div>
   {/if}
 </div>
@@ -414,7 +442,16 @@
   .fled-msg  { color: var(--color-text-muted); }
   .terminal-icon { font-size: 20px; }
 
-  /* ── Combat log ── */
+  /* ── Combat log and Loot container ── */
+  .logs-container {
+    display: flex;
+    gap: 12px;
+  }
+
+  .log-card, .loot-card {
+    flex: 1;
+  }
+
   .card-header {
     display: flex;
     align-items: center;
@@ -457,4 +494,35 @@
   .log-spawn  { color: var(--color-text); }
   .log-death  { color: var(--color-danger-bright); font-weight: 600; }
   .log-info   { color: var(--color-text-muted); }
+  .log-loot   { color: var(--color-gold); font-size: 15px; font-weight: 700; }
+
+  /* ── Loot list ── */
+  .loot-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .loot-item {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--color-gold);
+    padding: 8px;
+    background-color: rgba(180, 130, 0, 0.08);
+    border: 1px solid var(--color-gold-dim);
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  .loot-item.loot-empty {
+    color: var(--color-text-muted);
+    background-color: transparent;
+    border: none;
+    font-weight: 400;
+  }
 </style>
