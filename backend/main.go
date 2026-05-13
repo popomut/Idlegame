@@ -93,6 +93,12 @@ func main() {
         api.Put("/admin/monsters/:id", handlers.AdminUpdateMonster)
         api.Delete("/admin/monsters/:id", handlers.AdminDeleteMonster)
 
+        // Admin ores management (development only — delete before production)
+        api.Get("/admin/ores", handlers.AdminGetAllOres)
+        api.Post("/admin/ores", handlers.AdminCreateOre)
+        api.Put("/admin/ores/:id", handlers.AdminUpdateOre)
+        api.Delete("/admin/ores/:id", handlers.AdminDeleteOre)
+
         // Start server
         port := 5000
         fmt.Printf("🚀 Server running on http://0.0.0.0:%d\n", port)

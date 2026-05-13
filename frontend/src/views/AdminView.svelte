@@ -2,8 +2,9 @@
   import { onMount } from 'svelte';
   import EquipmentManagementView from './EquipmentManagementView.svelte';
   import MonsterManagementView from './MonsterManagementView.svelte';
+  import OreManagementView from './OreManagementView.svelte';
 
-  let currentTab = 'equipment'; // 'equipment' or 'monsters'
+  let currentTab = 'equipment'; // 'equipment', 'monsters', or 'ores'
 
   function switchTab(tab) {
     currentTab = tab;
@@ -32,6 +33,13 @@
       >
         👹 Monster Management
       </button>
+      <button
+        class="tab-btn"
+        class:active={currentTab === 'ores'}
+        on:click={() => switchTab('ores')}
+      >
+        ⛏️ Ores Management
+      </button>
     </div>
   </div>
 
@@ -39,6 +47,8 @@
     <EquipmentManagementView />
   {:else if currentTab === 'monsters'}
     <MonsterManagementView />
+  {:else if currentTab === 'ores'}
+    <OreManagementView />
   {/if}
 </div>
 

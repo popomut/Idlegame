@@ -260,6 +260,22 @@
               <input id="equipment_sort" type="number" bind:value={formData.sort_order} min="0" />
             </div>
           </div>
+
+          <fieldset class="modifiers-group">
+            <legend>Modifiers (Optional)</legend>
+            {#if formData.modifiers.length > 0}
+              <div class="modifiers-list">
+                {#each formData.modifiers as mod, idx}
+                  <div class="modifier-row">
+                    <input type="text" bind:value={mod.type} placeholder="e.g. str, int, dex, resist_fire" />
+                    <input type="number" bind:value={mod.value} placeholder="Value" />
+                    <button type="button" class="btn-remove" on:click={() => formData.modifiers.splice(idx, 1) && (formData.modifiers = formData.modifiers)}>✕</button>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+            <button type="button" class="btn-add-modifier" on:click={() => formData.modifiers = [...formData.modifiers, { type: '', value: 0 }]}>+ Add Modifier</button>
+          </fieldset>
         </div>
 
         <div class="modal-footer">
@@ -563,6 +579,81 @@
     gap: 8px;
   }
 
+  .modifiers-group {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .modifiers-group legend {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-heading);
+    padding: 0 4px;
+  }
+
+  .modifiers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .modifier-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 40px;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .modifier-row input {
+    padding: 6px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background-color: var(--color-bg-elevated);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 12px;
+  }
+
+  .modifier-row input:focus {
+    outline: none;
+    border-color: var(--color-magic);
+  }
+
+  .btn-remove {
+    padding: 4px 8px;
+    border: 1px solid var(--color-danger);
+    border-radius: 4px;
+    background: none;
+    color: var(--color-danger-bright);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .btn-remove:hover {
+    background-color: rgba(200, 60, 60, 0.1);
+  }
+
+  .btn-add-modifier {
+    padding: 6px 12px;
+    border: 1px dashed var(--color-magic);
+    border-radius: 4px;
+    background: none;
+    color: var(--color-magic-bright);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+
+  .btn-add-modifier:hover {
+    background-color: rgba(80, 80, 200, 0.1);
+  }
+
   @media (max-width: 600px) {
     .form-row {
       grid-template-columns: 1fr;
@@ -579,6 +670,10 @@
 
     .actions-cell {
       flex-direction: column;
+    }
+
+    .modifier-row {
+      grid-template-columns: 1fr;
     }
   }
 </style>

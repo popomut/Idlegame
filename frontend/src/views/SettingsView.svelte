@@ -1,6 +1,8 @@
 <script>
   import { player } from '../stores/game.js';
   import { theme } from '../stores/theme.js';
+  import { clearAuth } from '../stores/auth.js';
+  import { navigateTo } from '../stores/navigation.js';
 
   let playerName = $player.name;
   let notificationsEnabled = true;
@@ -16,6 +18,11 @@
     // e.target.checked is already the NEW state after toggle
     const newTheme = e.target.checked ? 'dark' : 'light';
     theme.setTheme(newTheme);
+  }
+
+  async function handleLogout() {
+    clearAuth();
+    navigateTo('login');
   }
 </script>
 
@@ -101,6 +108,21 @@
         <span class="setting-desc">Delete all field data and restart from scratch</span>
       </div>
       <button class="danger-btn">Wipe</button>
+    </div>
+  </div>
+
+  <!-- Session settings -->
+  <div class="card danger-card">
+    <div class="card-header">
+      <span class="card-icon">🚪</span>
+      <h2 class="card-title">Session</h2>
+    </div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <span class="setting-label">Logout</span>
+        <span class="setting-desc">Sign out from your account and return to login</span>
+      </div>
+      <button class="danger-btn" on:click={handleLogout}>Logout</button>
     </div>
   </div>
 </div>
