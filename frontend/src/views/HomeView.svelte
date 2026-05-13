@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
-  import { player, activityLog } from '../stores/game.js';
+  import { player, activityLog, syncCharacter } from '../stores/game.js';
   import { characterAPI } from '../services/api.js';
   import { navigateTo } from '../stores/navigation.js';
 
@@ -15,7 +15,10 @@
   let ticksSinceSave = 0;
   const PERSIST_EVERY = 30; // seconds between DB saves
 
-  onMount(() => {
+  onMount(async () => {
+    // Refresh player stats including equipment modifiers
+    await syncCharacter();
+    
     regenInterval = setInterval(() => {
       player.update(p => {
         if (p.hp >= p.maxHp) return p;

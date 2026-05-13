@@ -3,9 +3,8 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v2"
 	"idlegame-backend/database"
+	"log"
 )
-
-// CharacterResponse is the full character data returned to the frontend
 type CharacterResponse struct {
 	UserID      uint   `json:"user_id"`
 	Username    string `json:"username"`
@@ -35,6 +34,50 @@ func GetCharacter(c *fiber.Ctx) error {
 
 	xpRequired := xpForNextLevel(user.Level)
 
+	// Calculate total stats including equipment modifiers
+	totalStr := user.Str
+	totalInt := user.Int
+	totalDex := user.Dex
+
+	// Fetch all equipped items
+	var slotRows []database.UserEquippedSlot
+	database.DB.Where("user_id = ?", userID).Find(&slotRows)
+	
+	log.Printf("DEBUG: Found %d equipped slots for user %d", len(slotRows), userID)
+
+	// For each equipped slot, add modifiers
+	for _, slotRow := range slotRows {
+		if slotRow.UserEquipmentID == 0 {
+			continue // Empty slot
+		}
+
+		var ue database.UserEquipment
+		if err := database.DB.Preload("Equipment").First(&ue, slotRow.UserEquipmentID).Error; err != nil {
+			log.Printf("DEBUG: Failed to load UserEquipment %d: %v", slotRow.UserEquipmentID, err)
+			continue
+		}
+
+		log.Printf("DEBUG: Equipped item: %s (slot: %s), ModifiersJSON: %s", ue.Equipment.Name, slotRow.Slot, ue.Equipment.ModifiersJSON)
+
+		// Parse and apply modifiers
+		mods := parseModifiers(ue.Equipment.ModifiersJSON)
+		log.Printf("DEBUG: Parsed %d modifiers from %s", len(mods), ue.Equipment.Name)
+		
+		for _, mod := range mods {
+			log.Printf("DEBUG: Applying modifier - type: %s, value: %d", mod.Type, mod.Value)
+			switch mod.Type {
+			case "str":
+				totalStr += mod.Value
+			case "int":
+				totalInt += mod.Value
+			case "dex":
+				totalDex += mod.Value
+			}
+		}
+	}
+
+	log.Printf("DEBUG: Final stats - STR: %d, INT: %d, DEX: %d", totalStr, totalInt, totalDex)
+
 	return c.JSON(CharacterResponse{
 		UserID:      user.ID,
 		Username:    user.Username,
@@ -47,9 +90,9 @@ func GetCharacter(c *fiber.Ctx) error {
 		MaxHP:       user.MaxHP,
 		Stamina:     user.Stamina,
 		MaxStamina:  user.MaxStamina,
-		Str:         user.Str,
-		Int:         user.Int,
-		Dex:         user.Dex,
+		Str:         totalStr,
+		Int:         totalInt,
+		Dex:         totalDex,
 		Money:       user.Money,
 	})
 }

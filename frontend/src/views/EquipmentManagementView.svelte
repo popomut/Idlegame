@@ -89,6 +89,7 @@
   async function saveEquipment() {
     error = null;
     try {
+      console.log('Saving equipment with data:', formData);
       if (editingId) {
         await adminAPI.updateEquipment(editingId, formData);
       } else {
