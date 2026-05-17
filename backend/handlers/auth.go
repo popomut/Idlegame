@@ -119,8 +119,8 @@ func Register(c *fiber.Ctx) error {
 		Value:    token,
 		Expires:  time.Now().Add(24 * 7 * time.Hour), // 7 days
 		HTTPOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
-		SameSite: "Lax",
+		Secure:   true,  // Required for SameSite: None
+		SameSite: "None", // Allow cross-site cookie access
 	})
 
 	return c.Status(fiber.StatusCreated).JSON(AuthResponse{
@@ -161,8 +161,8 @@ func Login(c *fiber.Ctx) error {
 		Value:    token,
 		Expires:  time.Now().Add(24 * 7 * time.Hour),
 		HTTPOnly: true,
-		Secure:   false,
-		SameSite: "Lax",
+		Secure:   true,
+		SameSite: "None",
 	})
 
 	return c.JSON(AuthResponse{
@@ -207,8 +207,8 @@ func GuestLogin(c *fiber.Ctx) error {
 		Value:    token,
 		Expires:  time.Now().Add(24 * 7 * time.Hour),
 		HTTPOnly: true,
-		Secure:   false,
-		SameSite: "Lax",
+		Secure:   true,
+		SameSite: "None",
 	})
 	
 	return c.Status(fiber.StatusCreated).JSON(AuthResponse{
@@ -225,8 +225,8 @@ func Logout(c *fiber.Ctx) error {
 		Value:    "",
 		Expires:  time.Now().Add(-time.Hour),
 		HTTPOnly: true,
-		Secure:   false,
-		SameSite: "Lax",
+		Secure:   true,
+		SameSite: "None",
 	})
 	
 	return c.JSON(fiber.Map{"message": "logged out successfully"})

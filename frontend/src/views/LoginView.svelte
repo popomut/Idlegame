@@ -24,10 +24,22 @@
         throw new Error('Failed to create guest account');
       }
 
-      console.log('Guest login successful. Cookies should be set.');
+      console.log('Guest login successful. Verifying session...');
       
-      // Token is now in httpOnly cookie - no need to store it
-      // Just update auth state
+      // Verify the session is actually set by checking user info
+      // This ensures the cookie was properly set on Safari
+      const userResponse = await fetch(`${API_BASE_URL}/api/user`, {
+        credentials: 'include',
+      });
+      
+      if (!userResponse.ok) {
+        throw new Error('Session verification failed - cookie may not be set');
+      }
+      
+      const userData = await userResponse.json();
+      console.log('Session verified:', userData.username);
+      
+      // Session is confirmed valid - update auth state
       isAuthenticated.set(true);
       
       // Redirect to home
