@@ -118,6 +118,19 @@ func seedOreTypes() error {
 			SortOrder:       1,
 		},
 		{
+			OreKey:          "silver_ore",
+			OreName:         "Silver Ore",
+			Icon:            "⚪",
+			Color:           "#c0c0c0",
+			Difficulty:      "Uncommon",
+			MiningTimeMS:    4000,
+			XPPerOre:        15,
+			LevelRequired:   3,
+			PickaxeRequired: "none",
+			MaxQuantity:     400,
+			SortOrder:       2,
+		},
+		{
 			OreKey:          "iron_ore",
 			OreName:         "Iron Ore",
 			Icon:            "⚫",
@@ -128,7 +141,20 @@ func seedOreTypes() error {
 			LevelRequired:   5,
 			PickaxeRequired: "none",
 			MaxQuantity:     300,
-			SortOrder:       2,
+			SortOrder:       3,
+		},
+		{
+			OreKey:          "bronze_ore",
+			OreName:         "Bronze Ore",
+			Icon:            "🟤",
+			Color:           "#cd7f32",
+			Difficulty:      "Uncommon",
+			MiningTimeMS:    5000,
+			XPPerOre:        18,
+			LevelRequired:   7,
+			PickaxeRequired: "none",
+			MaxQuantity:     350,
+			SortOrder:       4,
 		},
 		{
 			OreKey:          "gold_ore",
@@ -141,7 +167,33 @@ func seedOreTypes() error {
 			LevelRequired:   15,
 			PickaxeRequired: "iron_pickaxe",
 			MaxQuantity:     100,
-			SortOrder:       3,
+			SortOrder:       5,
+		},
+		{
+			OreKey:          "platinum_ore",
+			OreName:         "Platinum Ore",
+			Icon:            "⭐",
+			Color:           "#e5e4e2",
+			Difficulty:      "Rare",
+			MiningTimeMS:    15000,
+			XPPerOre:        50,
+			LevelRequired:   20,
+			PickaxeRequired: "iron_pickaxe",
+			MaxQuantity:     80,
+			SortOrder:       6,
+		},
+		{
+			OreKey:          "emerald_ore",
+			OreName:         "Emerald Ore",
+			Icon:            "💚",
+			Color:           "#50c878",
+			Difficulty:      "Rare",
+			MiningTimeMS:    18000,
+			XPPerOre:        55,
+			LevelRequired:   25,
+			PickaxeRequired: "iron_pickaxe",
+			MaxQuantity:     70,
+			SortOrder:       7,
 		},
 		{
 			OreKey:          "mithril_ore",
@@ -154,7 +206,46 @@ func seedOreTypes() error {
 			LevelRequired:   30,
 			PickaxeRequired: "gold_pickaxe",
 			MaxQuantity:     50,
-			SortOrder:       4,
+			SortOrder:       8,
+		},
+		{
+			OreKey:          "sapphire_ore",
+			OreName:         "Sapphire Ore",
+			Icon:            "💙",
+			Color:           "#0f52ba",
+			Difficulty:      "Epic",
+			MiningTimeMS:    30000,
+			XPPerOre:        85,
+			LevelRequired:   35,
+			PickaxeRequired: "gold_pickaxe",
+			MaxQuantity:     40,
+			SortOrder:       9,
+		},
+		{
+			OreKey:          "ruby_ore",
+			OreName:         "Ruby Ore",
+			Icon:            "❤️",
+			Color:           "#e0115f",
+			Difficulty:      "Epic",
+			MiningTimeMS:    35000,
+			XPPerOre:        100,
+			LevelRequired:   40,
+			PickaxeRequired: "gold_pickaxe",
+			MaxQuantity:     35,
+			SortOrder:       10,
+		},
+		{
+			OreKey:          "titanium_ore",
+			OreName:         "Titanium Ore",
+			Icon:            "🔷",
+			Color:           "#878681",
+			Difficulty:      "Epic",
+			MiningTimeMS:    45000,
+			XPPerOre:        120,
+			LevelRequired:   45,
+			PickaxeRequired: "mithril_pickaxe",
+			MaxQuantity:     30,
+			SortOrder:       11,
 		},
 		{
 			OreKey:          "diamond_ore",
@@ -167,23 +258,58 @@ func seedOreTypes() error {
 			LevelRequired:   50,
 			PickaxeRequired: "mithril_pickaxe",
 			MaxQuantity:     25,
-			SortOrder:       5,
+			SortOrder:       12,
+		},
+		{
+			OreKey:          "obsidian_ore",
+			OreName:         "Obsidian Ore",
+			Icon:            "🖤",
+			Color:           "#0b1107",
+			Difficulty:      "Legendary",
+			MiningTimeMS:    70000,
+			XPPerOre:        160,
+			LevelRequired:   52,
+			PickaxeRequired: "mithril_pickaxe",
+			MaxQuantity:     20,
+			SortOrder:       13,
+		},
+		{
+			OreKey:          "orichalcum_ore",
+			OreName:         "Orichalcum Ore",
+			Icon:            "🟡",
+			Color:           "#b76e00",
+			Difficulty:      "Legendary",
+			MiningTimeMS:    80000,
+			XPPerOre:        180,
+			LevelRequired:   55,
+			PickaxeRequired: "mithril_pickaxe",
+			MaxQuantity:     15,
+			SortOrder:       14,
+		},
+		{
+			OreKey:          "celestial_ore",
+			OreName:         "Celestial Ore",
+			Icon:            "✨🌙",
+			Color:           "#9932cc",
+			Difficulty:      "Mythic",
+			MiningTimeMS:    100000,
+			XPPerOre:        200,
+			LevelRequired:   60,
+			PickaxeRequired: "mithril_pickaxe",
+			MaxQuantity:     10,
+			SortOrder:       15,
 		},
 	}
 
-	// Upsert: update existing rows so new fields (PickaxeRequired, MaxQuantity, SortOrder) are applied
+	// Only create if doesn't exist — preserve user edits on restart
 	for _, ore := range ores {
 		var existing OreType
 		result := DB.Where("ore_key = ?", ore.OreKey).First(&existing)
 		if result.Error != nil {
 			// Not found — create
 			DB.Create(&ore)
-		} else {
-			// Found — update with latest master data
-			ore.ID = existing.ID
-			ore.CreatedAt = existing.CreatedAt
-			DB.Save(&ore)
 		}
+		// If found, do nothing — preserve user edits from admin panel
 	}
 
 	return nil
