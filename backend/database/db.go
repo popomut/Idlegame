@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"log"
+	"math"
 )
 
 var DB *gorm.DB
@@ -34,6 +35,12 @@ func Init() error {
 
 	// Seed character levels
 	err = seedCharacterLevels()
+	if err != nil {
+		return err
+	}
+
+	// Seed mining levels
+	err = seedMiningLevels()
 	if err != nil {
 		return err
 	}
@@ -75,6 +82,8 @@ func migrate() error {
 	return DB.AutoMigrate(
 		&User{},
 		&CharacterLevel{},   // level master table
+		&MiningLevel{},      // mining level master table
+		&UserMiningSkill{},  // user mining skill tracker
 		&OreInventory{},     // kept for backward-compat / migration source
 		&OreInventoryItem{}, // new pivot table
 		&OreType{},
@@ -262,6 +271,32 @@ func seedCharacterLevels() error {
 			DB.Create(&cl)
 		} else {
 			DB.Save(&cl)
+		}
+	}
+	return nil
+}
+
+// seedMiningLevels seeds the mining level progression table (separate from combat levels).
+// Mining progression is steeper to give achievable short-term goals.
+// Formula: XP(n) = 50 * n^1.3  (slower than combat)
+// Max level: 50 (configurable in admin panel)
+func seedMiningLevels() error {
+	for lvl := 1; lvl <= 50; lvl++ {
+		xpRequired := int(float64(50) * math.Pow(float64(lvl), 1.3))
+		if lvl == 1 {
+			xpRequired = 0 // Level 1 is the starting level
+		}
+
+		ml := MiningLevel{
+			Level:      lvl,
+			XPRequired: xpRequired,
+		}
+
+		var existing MiningLevel
+		if err := DB.First(&existing, lvl).Error; err != nil {
+			DB.Create(&ml)
+		} else {
+			DB.Save(&ml)
 		}
 	}
 	return nil

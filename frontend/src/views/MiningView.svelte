@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { ores, addLogEntry } from '../stores/game.js';
+  import { miningSkill } from '../stores/mining_skill.js';
   import {
     activeMining, miningPopups, miningProgress,
     startMining, stopMining, showMiningPopup,
@@ -71,6 +72,12 @@
   }
 
   async function handleOreClick(ore) {
+    // Check if ore is unlocked by level (only if ore exists and not aborting)
+    if (ore && ore.LevelRequired && ore.LevelRequired > $miningSkill.level) {
+      addLogEntry(`🔒 Level ${ore.LevelRequired} required to mine ${ore.OreName}`);
+      return;
+    }
+
     if ($activeMining) {
       // Save name before clearing activeMining
       const oreName = $activeMining.oreName;
@@ -81,7 +88,7 @@
       pendingOres = {};
       await stopMining();
       addLogEntry(`Stopped extracting ${oreName}.`);
-    } else {
+    } else if (ore) {
       pendingOres = {};
       await startMining(ore.ID, ore.OreName, ore.OreKey, ore.MiningTimeMS);
       startMiningPopups(ore);
@@ -169,26 +176,33 @@
         {#each oreTypes as ore}
           {@const isActive = $activeMining?.oreKey === ore.OreKey}
           {@const pickaxe = pickaxeLabel(ore.PickaxeRequired)}
+          {@const isLocked = ore.LevelRequired > $miningSkill.level}
           <button
             class="ore-btn"
             class:active={isActive}
+            class:locked={isLocked}
+            disabled={isLocked}
             on:click={() => handleOreClick(ore)}
           >
-            <div class="ore-btn-icon">{ore.Icon}</div>
+            <div class="ore-btn-icon">{isLocked ? '🔒' : ore.Icon}</div>
             <div class="ore-btn-info">
               <div class="ore-btn-name">{ore.OreName}</div>
               <div class="ore-btn-meta">
-                <span class="badge difficulty">{ore.Difficulty}</span>
-                <span class="badge interval">&#x23F3; {formatInterval(ore.MiningTimeMS)}</span>
-                {#if pickaxe}
-                  <span class="badge pickaxe">&#x26CF; {pickaxe}</span>
+                {#if isLocked}
+                  <span class="badge locked-badge">🔒 Level {ore.LevelRequired}</span>
+                {:else}
+                  <span class="badge difficulty">{ore.Difficulty}</span>
+                  <span class="badge interval">&#x23F3; {formatInterval(ore.MiningTimeMS)}</span>
+                  {#if pickaxe}
+                    <span class="badge pickaxe">&#x26CF; {pickaxe}</span>
+                  {/if}
                 {/if}
               </div>
             </div>
             <div class="ore-btn-status">
               {#if isActive}
                 <span class="mining-indicator">&#x23F1;&#xFE0F;</span>
-              {:else}
+              {:else if !isLocked}
                 <span class="ore-btn-qty">{($ores[ore.OreKey] ?? 0) + (pendingOres[ore.OreKey] ?? 0)}</span>
               {/if}
             </div>
@@ -350,6 +364,16 @@
     border-color: var(--color-gold-dim);
   }
 
+  .ore-btn.locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .ore-btn.locked:hover {
+    background-color: var(--color-bg-elevated);
+    border-color: var(--color-border-subtle);
+  }
+
   .ore-btn-icon { font-size: 28px; width: 32px; flex-shrink: 0; }
 
   .ore-btn-info { flex: 1; min-width: 0; }
@@ -388,6 +412,12 @@
     background-color: rgba(204, 74, 0, 0.12);
     color: var(--color-danger-bright);
     border: 1px solid rgba(204, 74, 0, 0.25);
+  }
+
+  .badge.locked-badge {
+    background-color: rgba(255, 100, 0, 0.15);
+    color: #ff6400;
+    border: 1px solid rgba(255, 100, 0, 0.3);
   }
 
   .ore-btn-status { flex-shrink: 0; }

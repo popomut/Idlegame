@@ -68,6 +68,16 @@ func createStarterEquipment(userID uint) {
 	}
 }
 
+// initializeMiningSkill creates a new UserMiningSkill row for a user (level 1, xp 0)
+func initializeMiningSkill(userID uint) {
+	miningSkill := database.UserMiningSkill{
+		UserID:    userID,
+		Level:     1,
+		XP:        0,
+		UpdatedAt: time.Now(),
+	}
+	database.DB.Create(&miningSkill)
+}
 // Register creates a new user account
 func Register(c *fiber.Ctx) error {
 	req := new(RegisterRequest)
@@ -106,6 +116,8 @@ func Register(c *fiber.Ctx) error {
 	createInitialOreInventory(user.ID)
 	// Grant starter equipment
 	createStarterEquipment(user.ID)
+	// Initialize mining skill
+	initializeMiningSkill(user.ID)
 
 	// Generate JWT token
 	token, err := utils.GenerateJWT(user.ID)
@@ -194,6 +206,8 @@ func GuestLogin(c *fiber.Ctx) error {
 	createInitialOreInventory(user.ID)
 	// Grant starter equipment
 	createStarterEquipment(user.ID)
+	// Initialize mining skill
+	initializeMiningSkill(user.ID)
 	
 	// Generate JWT token
 	token, err := utils.GenerateJWT(user.ID)

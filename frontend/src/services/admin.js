@@ -38,6 +38,12 @@ export const adminAPI = {
   createMonsterDrop: (data) => api.post('/admin/monster-drops', data),
   updateMonsterDrop: (id, data) => api.put(`/admin/monster-drops/${id}`, data),
   deleteMonsterDrop: (id) => api.delete(`/admin/monster-drops/${id}`),
+
+  // Mining levels endpoints
+  getAllMiningLevels: () => api.get('/admin/mining-levels'),
+  createMiningLevel: (data) => api.post('/admin/mining-levels', data),
+  updateMiningLevel: (level, data) => api.put(`/admin/mining-levels/${level}`, data),
+  deleteMiningLevel: (level) => api.delete(`/admin/mining-levels/${level}`),
 };
 
 

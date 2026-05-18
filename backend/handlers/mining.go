@@ -211,9 +211,9 @@ func CalculateAndSaveOreGains(userID uint, session database.MiningSession) int {
 		oresEarned, time.Now().UTC(), item.ID,
 	)
 
-	// Award XP based on ore type
-	xpGained := int64(ore.XPPerOre * oresEarned)
-	AwardXP(userID, xpGained)
+	// Award mining XP based on ore type
+	xpGained := ore.XPPerOre * oresEarned
+	AwardMiningXP(userID, xpGained)
 
 	database.LogActivity(userID, fmt.Sprintf("Extracted %d %s", oresEarned, ore.OreName))
 

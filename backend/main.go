@@ -58,6 +58,7 @@ func main() {
         api.Post("/mining/start", handlers.StartMining)
         api.Post("/mining/stop", handlers.StopMining)
         api.Get("/mining/status", handlers.GetMiningStatus)
+        api.Get("/mining/skill", handlers.GetMiningSkill)
 
         // Inventory routes
         api.Get("/inventory/ores", handlers.GetOreInventory)
@@ -104,6 +105,12 @@ func main() {
         api.Post("/admin/monster-drops", handlers.AdminCreateMonsterDrop)
         api.Put("/admin/monster-drops/:id", handlers.AdminUpdateMonsterDrop)
         api.Delete("/admin/monster-drops/:id", handlers.AdminDeleteMonsterDrop)
+
+        // Admin mining levels management (development only — delete before production)
+        api.Get("/admin/mining-levels", handlers.AdminGetMiningLevels)
+        api.Post("/admin/mining-levels", handlers.AdminCreateMiningLevel)
+        api.Put("/admin/mining-levels/:level", handlers.AdminUpdateMiningLevel)
+        api.Delete("/admin/mining-levels/:level", handlers.AdminDeleteMiningLevel)
 
         // Start server
         port := 5000

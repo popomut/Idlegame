@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { player, activityLog, syncCharacter } from '../stores/game.js';
+  import { miningSkill, syncMiningSkill } from '../stores/mining_skill.js';
   import { characterAPI } from '../services/api.js';
   import { navigateTo } from '../stores/navigation.js';
 
@@ -18,6 +19,8 @@
   onMount(async () => {
     // Refresh player stats including equipment modifiers
     await syncCharacter();
+    // Fetch mining skill
+    await syncMiningSkill();
     
     regenInterval = setInterval(() => {
       player.update(p => {
@@ -109,6 +112,26 @@
         <span class="stat-box-icon">&#x1F3AF;</span>
         <span class="stat-box-label">DEX</span>
         <span class="stat-box-value">{$player.dex}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mining skill card -->
+  <div class="card mining-card">
+    <div class="card-header">
+      <span class="card-icon">⛏️</span>
+      <h2 class="card-title">Extraction Skill</h2>
+      <span class="level-tag">LEVEL {$miningSkill.level}</span>
+    </div>
+
+    <div class="stat-bars">
+      <!-- Mining XP -->
+      <div class="stat-row">
+        <span class="stat-label">⛏️ EXP</span>
+        <div class="stat-bar-track">
+          <div class="stat-bar-fill mining-fill" style="width: {pct($miningSkill.xp_progress, $miningSkill.xp_required)}%"></div>
+        </div>
+        <span class="stat-value">{$miningSkill.xp_progress} / {$miningSkill.xp_required}</span>
       </div>
     </div>
   </div>
@@ -266,6 +289,7 @@
   .xp-fill { background: linear-gradient(90deg, var(--color-gold-dim), var(--color-gold)); }
   .hp-fill  { background: linear-gradient(90deg, #1a5a1a, #2a9e2a); }
   .stamina-fill { background: linear-gradient(90deg, var(--color-magic), var(--color-magic-bright)); }
+  .mining-fill { background: linear-gradient(90deg, #8b7355, #d4a574); }
 
   .stat-value {
     font-size: 12px;

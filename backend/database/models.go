@@ -48,6 +48,22 @@ type CharacterLevel struct {
 	Dex         int `gorm:"default:5"`
 }
 
+// MiningLevel defines XP progression for mining skill — completely separate from combat
+type MiningLevel struct {
+	Level       int `gorm:"primaryKey"` // 1, 2, 3, ...
+	XPRequired  int `gorm:"not null"` // total XP needed to reach this level
+}
+
+// UserMiningSkill tracks player's mining progression — one row per user
+type UserMiningSkill struct {
+	ID        uint      `gorm:"primaryKey"`
+	UserID    uint      `gorm:"uniqueIndex;not null"`
+	User      User      `gorm:"foreignKey:UserID"`
+	Level     int       `gorm:"default:1"`
+	XP        int       `gorm:"default:0"`
+	UpdatedAt time.Time
+}
+
 // OreInventory stores player's ore counts
 type OreInventory struct {
 	ID       uint   `gorm:"primaryKey"`
@@ -109,7 +125,7 @@ type MiningSession struct {
 	OresMined   int    `gorm:"default:0"`
 	
 	// Session status: 'active', 'paused', 'completed'
-	Status      string `gorm:"default:'active';index"`
+	Status      string `gorm:"default:'active';index;not null"`
 	
 	CreatedAt   time.Time
 }
