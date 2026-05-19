@@ -4,6 +4,7 @@
   import { currentPage } from './stores/navigation.js';
   import { isAuthenticated, loadAuthFromStorage } from './stores/auth.js';
   import { initMiningStatus } from './stores/mining.js';
+  import { initCraftingStatus } from './stores/blacksmith.js';
   import { loadConfigFromStorage } from './stores/config.js';
   import { theme } from './stores/theme.js';
   import { syncCharacter } from './stores/game.js';
@@ -18,6 +19,7 @@
   import HomeView from './views/HomeView.svelte';
   import CombatView from './views/CombatView.svelte';
   import MiningView from './views/MiningView.svelte';
+  import BlacksmithView from './views/BlacksmithView.svelte';
   import SkillsView from './views/SkillsView.svelte';
   import InventoryView from './views/InventoryView.svelte';
   import EquipmentView from './views/EquipmentView.svelte';
@@ -45,6 +47,7 @@
       // Load character stats and mining status on app load
       await syncCharacter();
       await initMiningStatus();
+      await initCraftingStatus();
     }
 
     // Global page visibility handler: when user returns from background,
@@ -79,6 +82,8 @@
       <MapView />
     {:else if $currentPage === 'mining'}
       <MiningView />
+    {:else if $currentPage === 'blacksmith'}
+      <BlacksmithView />
     {:else if $currentPage === 'equipment'}
       <EquipmentView />
     {:else if $currentPage === 'skills'}

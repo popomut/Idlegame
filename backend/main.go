@@ -60,6 +60,14 @@ func main() {
         api.Get("/mining/status", handlers.GetMiningStatus)
         api.Get("/mining/skill", handlers.GetMiningSkill)
 
+        // Blacksmith routes
+        api.Post("/blacksmith/start", handlers.StartCrafting)
+        api.Post("/blacksmith/stop", handlers.StopCrafting)
+        api.Get("/blacksmith/status", handlers.GetCraftingStatus)
+        api.Get("/blacksmith/skill", handlers.GetBlacksmithSkill)
+        api.Get("/blacksmith/recipes", handlers.GetCraftableItems)
+        api.Get("/blacksmith/inventory", handlers.GetIngotInventory)
+
         // Inventory routes
         api.Get("/inventory/ores", handlers.GetOreInventory)
 
@@ -111,6 +119,18 @@ func main() {
         api.Post("/admin/mining-levels", handlers.AdminCreateMiningLevel)
         api.Put("/admin/mining-levels/:level", handlers.AdminUpdateMiningLevel)
         api.Delete("/admin/mining-levels/:level", handlers.AdminDeleteMiningLevel)
+
+        // Admin blacksmith management (development only — delete before production)
+        api.Get("/admin/craftable-items", handlers.AdminGetCraftableItems)
+        api.Post("/admin/craftable-items", handlers.AdminCreateCraftableItem)
+        api.Put("/admin/craftable-items/:id", handlers.AdminUpdateCraftableItem)
+        api.Delete("/admin/craftable-items/:id", handlers.AdminDeleteCraftableItem)
+
+        // Admin blacksmith levels management (development only — delete before production)
+        api.Get("/admin/blacksmith-levels", handlers.AdminGetBlacksmithLevels)
+        api.Post("/admin/blacksmith-levels", handlers.AdminCreateBlacksmithLevel)
+        api.Put("/admin/blacksmith-levels/:level", handlers.AdminUpdateBlacksmithLevel)
+        api.Delete("/admin/blacksmith-levels/:level", handlers.AdminDeleteBlacksmithLevel)
 
         // Start server
         port := 5000

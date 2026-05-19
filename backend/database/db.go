@@ -45,8 +45,20 @@ func Init() error {
 		return err
 	}
 
+	// Seed blacksmith levels
+	err = seedBlacksmithLevels()
+	if err != nil {
+		return err
+	}
+
 	// Migrate legacy flat OreInventory rows to new pivot table
 	err = migrateOreInventoryToItems()
+	if err != nil {
+		return err
+	}
+
+	// Seed craftable items (recipes)
+	err = seedCraftableItems()
 	if err != nil {
 		return err
 	}
@@ -84,10 +96,16 @@ func migrate() error {
 		&CharacterLevel{},   // level master table
 		&MiningLevel{},      // mining level master table
 		&UserMiningSkill{},  // user mining skill tracker
+		&BlacksmithLevel{},  // blacksmith level master table
+		&UserBlacksmithSkill{}, // user blacksmith skill tracker
 		&OreInventory{},     // kept for backward-compat / migration source
 		&OreInventoryItem{}, // new pivot table
 		&OreType{},
 		&MiningSession{},
+		&CraftableItem{},    // blacksmith recipes
+		&CraftRecipeIngredient{}, // recipe ingredients
+		&UserIngotInventory{}, // ingot inventory pivot
+		&BlacksmithSession{}, // active crafting session
 		&Monster{},
 		&MonsterDrop{},
 		&Continent{},
@@ -424,6 +442,171 @@ func seedMiningLevels() error {
 		} else {
 			DB.Save(&ml)
 		}
+	}
+	return nil
+}
+
+// seedBlacksmithLevels seeds the blacksmith level progression table (separate from mining/combat).
+// Formula: XP(n) = 60 * n^1.2  (similar pace to mining)
+// Max level: 50 (configurable in admin panel)
+func seedBlacksmithLevels() error {
+	for lvl := 1; lvl <= 50; lvl++ {
+		xpRequired := int(float64(60) * math.Pow(float64(lvl), 1.2))
+		if lvl == 1 {
+			xpRequired = 0 // Level 1 is the starting level
+		}
+
+		bl := BlacksmithLevel{
+			Level:      lvl,
+			XPRequired: xpRequired,
+		}
+
+		var existing BlacksmithLevel
+		if err := DB.First(&existing, lvl).Error; err != nil {
+			DB.Create(&bl)
+		}
+		// If found, do nothing — preserve user edits from admin panel
+	}
+	return nil
+}
+
+// seedCraftableItems seeds the recipe master table
+func seedCraftableItems() error {
+	recipes := []CraftableItem{
+		{
+			Name:           "Copper Ingot",
+			Description:    "A basic ingot for crafting",
+			Icon:           "🪨",
+			ItemKey:        "copper_ingot",
+			OutputType:     "ingot",
+			CraftingTimeMS: 5000,
+			XPPerCraft:     20,
+			LevelRequired:  1,
+			MaxQuantity:    500,
+			SortOrder:      1,
+		},
+		{
+			Name:           "Iron Ingot",
+			Description:    "A strong ingot for better tools",
+			Icon:           "⚫",
+			ItemKey:        "iron_ingot",
+			OutputType:     "ingot",
+			CraftingTimeMS: 8000,
+			XPPerCraft:     40,
+			LevelRequired:  5,
+			MaxQuantity:    300,
+			SortOrder:      2,
+		},
+		{
+			Name:           "Gold Ingot",
+			Description:    "A precious ingot",
+			Icon:           "✨",
+			ItemKey:        "gold_ingot",
+			OutputType:     "ingot",
+			CraftingTimeMS: 12000,
+			XPPerCraft:     60,
+			LevelRequired:  15,
+			MaxQuantity:    100,
+			SortOrder:      3,
+		},
+		{
+			Name:           "Mithril Ingot",
+			Description:    "A legendary ingot",
+			Icon:           "💎",
+			ItemKey:        "mithril_ingot",
+			OutputType:     "ingot",
+			CraftingTimeMS: 20000,
+			XPPerCraft:     100,
+			LevelRequired:  30,
+			MaxQuantity:    50,
+			SortOrder:      4,
+		},
+		{
+			Name:           "Diamond Ingot",
+			Description:    "The rarest ingot",
+			Icon:           "💠",
+			ItemKey:        "diamond_ingot",
+			OutputType:     "ingot",
+			CraftingTimeMS: 30000,
+			XPPerCraft:     150,
+			LevelRequired:  50,
+			MaxQuantity:    25,
+			SortOrder:      5,
+		},
+	}
+
+	// Only create if doesn't exist — preserve user edits on restart
+	for _, recipe := range recipes {
+		var existing CraftableItem
+		result := DB.Where("item_key = ?", recipe.ItemKey).First(&existing)
+		if result.Error != nil {
+			// Not found — create and add ingredients
+			DB.Create(&recipe)
+			
+			// Add recipe ingredients based on item_key
+			switch recipe.ItemKey {
+			case "copper_ingot":
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "ore",
+					IngredientKey:   "copper_ore",
+					QuantityRequired: 3,
+				})
+			case "iron_ingot":
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "ore",
+					IngredientKey:   "iron_ore",
+					QuantityRequired: 4,
+				})
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "ore",
+					IngredientKey:   "copper_ore",
+					QuantityRequired: 2,
+				})
+			case "gold_ingot":
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "ore",
+					IngredientKey:   "gold_ore",
+					QuantityRequired: 3,
+				})
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "ingot",
+					IngredientKey:   "iron_ingot",
+					QuantityRequired: 2,
+				})
+			case "mithril_ingot":
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "ore",
+					IngredientKey:   "mithril_ore",
+					QuantityRequired: 3,
+				})
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "ingot",
+					IngredientKey:   "gold_ingot",
+					QuantityRequired: 2,
+				})
+			case "diamond_ingot":
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "ore",
+					IngredientKey:   "diamond_ore",
+					QuantityRequired: 3,
+				})
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "ingot",
+					IngredientKey:   "mithril_ingot",
+					QuantityRequired: 3,
+				})
+			}
+		}
+		// If found, do nothing — preserve user edits from admin panel
 	}
 	return nil
 }

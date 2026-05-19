@@ -7,6 +7,7 @@
     { id: 'combat',       label: 'Engagement',     icon: '&#x2694;&#xFE0F;' },
     { id: 'map',          label: 'World Map',      icon: '&#x1F5FA;&#xFE0F;' },
     { id: 'mining',       label: 'Extraction',     icon: '&#x26CF;&#xFE0F;' },
+    { id: 'blacksmith',   label: 'Blacksmith',     icon: '&#x2692;&#xFE0F;' },
     { id: 'equipment',    label: 'Equipment',      icon: '&#x1F6E1;&#xFE0F;' },
     { id: 'skills',       label: 'Training',       icon: '&#x1F4AA;' },
     { id: 'inventory',    label: 'Field Kit',      icon: '&#x1F392;' },

@@ -64,6 +64,73 @@ type UserMiningSkill struct {
 	UpdatedAt time.Time
 }
 
+// BlacksmithLevel defines XP progression for blacksmith skill — completely separate from mining
+type BlacksmithLevel struct {
+	Level       int `gorm:"primaryKey"` // 1, 2, 3, ...
+	XPRequired  int `gorm:"not null"` // total XP needed to reach this level
+}
+
+// UserBlacksmithSkill tracks player's blacksmith progression — one row per user
+type UserBlacksmithSkill struct {
+	ID        uint      `gorm:"primaryKey"`
+	UserID    uint      `gorm:"uniqueIndex;not null"`
+	User      User      `gorm:"foreignKey:UserID"`
+	Level     int       `gorm:"default:1"`
+	XP        int       `gorm:"default:0"`
+	UpdatedAt time.Time
+}
+
+// CraftableItem defines a recipe that can be crafted
+type CraftableItem struct {
+	ID               uint   `gorm:"primaryKey"`
+	Name             string `gorm:"not null"`
+	Description      string
+	Icon             string
+	ItemKey          string `gorm:"uniqueIndex;not null"` // e.g. "copper_ingot"
+	OutputType       string `gorm:"not null"`              // "equipment" (goes to Armory) or "ingot" (stays on Blacksmith)
+	OutputID         uint                                   // FK to Equipment or CraftableItem (if ingot)
+	CraftingTimeMS   int    `gorm:"default:5000"`          // milliseconds to craft
+	XPPerCraft       int    `gorm:"default:25"`            // blacksmith XP earned
+	LevelRequired    int    `gorm:"default:1"`             // blacksmith level to unlock
+	SortOrder        int    `gorm:"default:0"`             // display order in UI
+	MaxQuantity      int    `gorm:"default:0"`             // 0 = unlimited (for ingots)
+	CreatedAt        time.Time
+}
+
+// CraftRecipeIngredient defines one ingredient requirement for a recipe
+type CraftRecipeIngredient struct {
+	ID                 uint   `gorm:"primaryKey"`
+	CraftableItemID    uint   `gorm:"not null;index"`
+	CraftableItem      CraftableItem `gorm:"foreignKey:CraftableItemID"`
+	IngredientType     string `gorm:"not null"` // "ore" or "ingot"
+	IngredientKey      string `gorm:"not null"` // ore_key or ingot_key
+	QuantityRequired   int    `gorm:"default:1"`
+}
+
+// UserIngotInventory is a pivot table: one row per (user, ingot) pair
+type UserIngotInventory struct {
+	ID        uint           `gorm:"primaryKey"`
+	UserID    uint           `gorm:"not null;uniqueIndex:idx_inv_user_ingot"`
+	IngotKey  string         `gorm:"not null;uniqueIndex:idx_inv_user_ingot"` // craftable_item.item_key
+	Quantity  int            `gorm:"default:0"`
+	UpdatedAt time.Time
+}
+
+// BlacksmithSession tracks crafting progress
+type BlacksmithSession struct {
+	ID              uint       `gorm:"primaryKey"`
+	UserID          uint       `gorm:"not null;index:idx_user_active_craft,unique,where:status='active'"`
+	User            User       `gorm:"foreignKey:UserID"`
+	CraftableItemID uint       `gorm:"not null"`
+	CraftableItem   CraftableItem `gorm:"foreignKey:CraftableItemID"`
+	
+	StartedAt   time.Time  `gorm:"not null"`
+	EndedAt     *time.Time
+	
+	Status      string `gorm:"default:'active';index;not null"` // 'active', 'completed'
+	CreatedAt   time.Time
+}
+
 // OreInventory stores player's ore counts
 type OreInventory struct {
 	ID       uint   `gorm:"primaryKey"`

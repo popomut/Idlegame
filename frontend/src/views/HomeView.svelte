@@ -3,6 +3,7 @@
   import { get } from 'svelte/store';
   import { player, activityLog, syncCharacter } from '../stores/game.js';
   import { miningSkill, syncMiningSkill } from '../stores/mining_skill.js';
+  import { blacksmithSkill, syncBlacksmithSkill } from '../stores/blacksmith_skill.js';
   import { characterAPI } from '../services/api.js';
   import { navigateTo } from '../stores/navigation.js';
 
@@ -21,6 +22,8 @@
     await syncCharacter();
     // Fetch mining skill
     await syncMiningSkill();
+    // Fetch blacksmith skill
+    await syncBlacksmithSkill();
     
     regenInterval = setInterval(() => {
       player.update(p => {
@@ -132,6 +135,26 @@
           <div class="stat-bar-fill mining-fill" style="width: {pct($miningSkill.xp_progress, $miningSkill.xp_required)}%"></div>
         </div>
         <span class="stat-value">{$miningSkill.xp_progress} / {$miningSkill.xp_required}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Blacksmith skill card -->
+  <div class="card blacksmith-card">
+    <div class="card-header">
+      <span class="card-icon">⚒️</span>
+      <h2 class="card-title">Blacksmith Skill</h2>
+      <span class="level-tag">LEVEL {$blacksmithSkill.level}</span>
+    </div>
+
+    <div class="stat-bars">
+      <!-- Blacksmith XP -->
+      <div class="stat-row">
+        <span class="stat-label">⚒️ EXP</span>
+        <div class="stat-bar-track">
+          <div class="stat-bar-fill blacksmith-fill" style="width: {pct($blacksmithSkill.xp_progress, $blacksmithSkill.xp_required)}%"></div>
+        </div>
+        <span class="stat-value">{$blacksmithSkill.xp_progress} / {$blacksmithSkill.xp_required}</span>
       </div>
     </div>
   </div>
@@ -290,6 +313,7 @@
   .hp-fill  { background: linear-gradient(90deg, #1a5a1a, #2a9e2a); }
   .stamina-fill { background: linear-gradient(90deg, var(--color-magic), var(--color-magic-bright)); }
   .mining-fill { background: linear-gradient(90deg, #8b7355, #d4a574); }
+  .blacksmith-fill { background: linear-gradient(90deg, #d4520a, #ff7722); }
 
   .stat-value {
     font-size: 12px;

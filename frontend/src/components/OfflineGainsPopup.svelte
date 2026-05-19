@@ -1,10 +1,16 @@
 <script>
   import { offlineGains, syncOreInventory } from '../stores/mining.js';
+  import { offlineCraftingGains, syncIngotInventory } from '../stores/blacksmith.js';
   import { fade, scale } from 'svelte/transition';
 
   async function handleAwesomeClick() {
-    await syncOreInventory();
-    offlineGains.set(null);
+    if ($offlineGains?.wasOffline) {
+      await syncOreInventory();
+      offlineGains.set(null);
+    } else if ($offlineCraftingGains?.wasOffline) {
+      await syncIngotInventory();
+      offlineCraftingGains.set(null);
+    }
   }
 </script>
 
@@ -14,12 +20,30 @@
       <div class="popup-icon">⚡</div>
       <h2 class="popup-title">Welcome Back!</h2>
       <p class="popup-text">
-        You earned <span class="ore-count">{$offlineGains.oresGained}</span>
-        <span class="ore-name">{$offlineGains.oreName}</span>
+        You earned <span class="count">{$offlineGains.oresGained}</span>
+        <span class="name">{$offlineGains.oreName}</span>
         while away!
       </p>
       <p class="popup-time">
         ({Math.round($offlineGains.timeMs / 1000 / 60)} minutes offline)
+      </p>
+      <button class="popup-btn" on:click={handleAwesomeClick}>
+        Awesome!
+      </button>
+    </div>
+  </div>
+{:else if $offlineCraftingGains?.wasOffline}
+  <div class="offline-popup" in:fade out:fade>
+    <div class="popup-content" in:scale out:scale>
+      <div class="popup-icon">⚒️</div>
+      <h2 class="popup-title">Welcome Back!</h2>
+      <p class="popup-text">
+        You crafted <span class="count">{$offlineCraftingGains.ingotsGained}</span>
+        <span class="name">{$offlineCraftingGains.recipeName}</span>
+        while away!
+      </p>
+      <p class="popup-time">
+        ({Math.round($offlineCraftingGains.timeMs / 1000 / 60)} minutes offline)
       </p>
       <button class="popup-btn" on:click={handleAwesomeClick}>
         Awesome!
@@ -67,12 +91,14 @@
     margin-bottom: 4px;
   }
 
-  .ore-count {
+  .ore-count,
+  .count {
     font-weight: 700;
     color: var(--color-gold-bright);
   }
 
-  .ore-name {
+  .ore-name,
+  .name {
     color: var(--color-magic-bright);
   }
 

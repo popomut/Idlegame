@@ -5,8 +5,9 @@
   import OreManagementView from './OreManagementView.svelte';
   import MonsterDropManagementView from './MonsterDropManagementView.svelte';
   import MiningLevelManagementView from './MiningLevelManagementView.svelte';
+  import CraftableItemManagementView from './CraftableItemManagementView.svelte';
 
-  let currentTab = 'equipment'; // 'equipment', 'monsters', 'ores', 'monster-drops', 'mining-levels'
+  let currentTab = 'equipment'; // 'equipment', 'monsters', 'ores', 'monster-drops', 'mining-levels', 'craftable-items', 'blacksmith-levels'
 
   function switchTab(tab) {
     currentTab = tab;
@@ -56,6 +57,20 @@
       >
         ⛏️ Mining Levels
       </button>
+      <button
+        class="tab-btn"
+        class:active={currentTab === 'craftable-items'}
+        on:click={() => switchTab('craftable-items')}
+      >
+        ⚒️ Recipes
+      </button>
+      <button
+        class="tab-btn"
+        class:active={currentTab === 'blacksmith-levels'}
+        on:click={() => switchTab('blacksmith-levels')}
+      >
+        ⚒️ Blacksmith Levels
+      </button>
     </div>
   </div>
 
@@ -69,6 +84,8 @@
     <MonsterDropManagementView />
   {:else if currentTab === 'mining-levels'}
     <MiningLevelManagementView />
+  {:else if currentTab === 'craftable-items'}
+    <CraftableItemManagementView />
   {/if}
 </div>
 
