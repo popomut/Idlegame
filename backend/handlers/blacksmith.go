@@ -466,23 +466,56 @@ func GetCraftingStatus(c *fiber.Ctx) error {
 	// Add pending (unsaved) ingots for the active session
 	if isActive {
 		recipe := session.CraftableItem
-		now := time.Now().UTC()
-		elapsed := now.Sub(session.StartedAt)
-		pendingIngots := int(elapsed.Milliseconds()) / recipe.CraftingTimeMS
-
-		// Apply max quantity cap
-		if recipe.MaxQuantity > 0 {
-			existing := currentIngots[recipe.ItemKey]
-			remaining := recipe.MaxQuantity - existing
-			if pendingIngots > remaining {
-				pendingIngots = remaining
-			}
-			if pendingIngots < 0 {
-				pendingIngots = 0
+		
+		// Check if we still have all required ingredients
+		var ingredients []database.CraftRecipeIngredient
+		database.DB.Where("craftable_item_id = ?", recipe.ID).Find(&ingredients)
+		
+		canContinue := true
+		for _, ing := range ingredients {
+			if ing.IngredientType == "ore" {
+				var oreType database.OreType
+				database.DB.Where("ore_key = ?", ing.IngredientKey).First(&oreType)
+				var item database.OreInventoryItem
+				database.DB.Where("user_id = ? AND ore_type_id = ?", userID, oreType.ID).First(&item)
+				if item.Quantity < ing.QuantityRequired {
+					canContinue = false
+					break
+				}
+			} else if ing.IngredientType == "ingot" {
+				var item database.UserIngotInventory
+				database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
+				if item.Quantity < ing.QuantityRequired {
+					canContinue = false
+					break
+				}
 			}
 		}
+		
+		// If we don't have ingredients, stop the session
+		if !canContinue {
+			database.DB.Model(&session).Update("status", "completed")
+			isActive = false
+		} else {
+			// Only calculate pending ingots if we can still craft
+			now := time.Now().UTC()
+			elapsed := now.Sub(session.StartedAt)
+			pendingIngots := int(elapsed.Milliseconds()) / recipe.CraftingTimeMS
 
-		currentIngots[recipe.ItemKey] += pendingIngots
+			// Apply max quantity cap
+			if recipe.MaxQuantity > 0 {
+				existing := currentIngots[recipe.ItemKey]
+				remaining := recipe.MaxQuantity - existing
+				if pendingIngots > remaining {
+					pendingIngots = remaining
+				}
+				if pendingIngots < 0 {
+					pendingIngots = 0
+				}
+			}
+
+			currentIngots[recipe.ItemKey] += pendingIngots
+		}
 	}
 
 	response := fiber.Map{
