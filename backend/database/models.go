@@ -82,19 +82,19 @@ type UserBlacksmithSkill struct {
 
 // CraftableItem defines a recipe that can be crafted
 type CraftableItem struct {
-	ID               uint   `gorm:"primaryKey"`
-	Name             string `gorm:"not null"`
-	Description      string
-	Icon             string
-	ItemKey          string `gorm:"uniqueIndex;not null"` // e.g. "copper_ingot"
-	OutputType       string `gorm:"not null"`              // "equipment" (goes to Armory) or "ingot" (stays on Blacksmith)
-	OutputID         uint                                   // FK to Equipment or CraftableItem (if ingot)
-	CraftingTimeMS   int    `gorm:"default:5000"`          // milliseconds to craft
-	XPPerCraft       int    `gorm:"default:25"`            // blacksmith XP earned
-	LevelRequired    int    `gorm:"default:1"`             // blacksmith level to unlock
-	SortOrder        int    `gorm:"default:0"`             // display order in UI
-	MaxQuantity      int    `gorm:"default:0"`             // 0 = unlimited (for ingots)
-	CreatedAt        time.Time
+	ID               uint   `gorm:"primaryKey" json:"id"`
+	Name             string `gorm:"not null" json:"name"`
+	Description      string `json:"description"`
+	Icon             string `json:"icon"`
+	ItemKey          string `gorm:"uniqueIndex;not null" json:"item_key"` // e.g. "copper_ingot"
+	OutputType       string `gorm:"not null" json:"output_type"`           // "equipment" (goes to Armory) or "ingot" (stays on Blacksmith)
+	OutputID         uint   `json:"output_id"`                              // FK to Equipment or CraftableItem (if ingot)
+	CraftingTimeMS   int    `gorm:"default:5000" json:"crafting_time_ms"`   // milliseconds to craft
+	XPPerCraft       int    `gorm:"default:25" json:"xp_per_craft"`         // blacksmith XP earned
+	LevelRequired    int    `gorm:"default:1" json:"level_required"`        // blacksmith level to unlock
+	SortOrder        int    `gorm:"default:0" json:"sort_order"`            // display order in UI
+	MaxQuantity      int    `gorm:"default:0" json:"max_quantity"`          // 0 = unlimited (for ingots)
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 // CraftRecipeIngredient defines one ingredient requirement for a recipe

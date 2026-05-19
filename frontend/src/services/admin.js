@@ -50,6 +50,12 @@ export const adminAPI = {
   createBlacksmithLevel: (data) => api.post('/admin/blacksmith-levels', data),
   updateBlacksmithLevel: (level, data) => api.put(`/admin/blacksmith-levels/${level}`, data),
   deleteBlacksmithLevel: (level) => api.delete(`/admin/blacksmith-levels/${level}`),
+
+  // Craftable items endpoints
+  getAllCraftableItems: () => api.get('/admin/craftable-items'),
+  createCraftableItem: (data) => api.post('/admin/craftable-items', data),
+  updateCraftableItem: (id, data) => api.put(`/admin/craftable-items/${id}`, data),
+  deleteCraftableItem: (id) => api.delete(`/admin/craftable-items/${id}`),
 };
 
 
