@@ -67,7 +67,16 @@ func GetBlacksmithSkill(c *fiber.Ctx) error {
 
 	var skill database.UserBlacksmithSkill
 	if err := database.DB.First(&skill, "user_id = ?", userID).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "blacksmith skill not found"})
+		// If skill doesn't exist, create it with level 1, xp 0
+		skill = database.UserBlacksmithSkill{
+			UserID:    userID,
+			Level:     1,
+			XP:        0,
+			UpdatedAt: time.Now(),
+		}
+		if err := database.DB.Create(&skill).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "failed to initialize blacksmith skill"})
+		}
 	}
 
 	// Get current level's XP requirement (cumulative total)
@@ -111,10 +120,19 @@ func GetCraftableItems(c *fiber.Ctx) error {
 		return c.Status(401).JSON(fiber.Map{"error": "unauthorized"})
 	}
 
-	// Get player's blacksmith level
+	// Get player's blacksmith level (lazy initialize if not found)
 	var skill database.UserBlacksmithSkill
 	if err := database.DB.First(&skill, "user_id = ?", userID).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "blacksmith skill not found"})
+		// If skill doesn't exist, create it with level 1, xp 0
+		skill = database.UserBlacksmithSkill{
+			UserID:    userID,
+			Level:     1,
+			XP:        0,
+			UpdatedAt: time.Now(),
+		}
+		if err := database.DB.Create(&skill).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "failed to initialize blacksmith skill"})
+		}
 	}
 
 	// Get all craftable items ordered by sort order
@@ -192,7 +210,16 @@ func StartCrafting(c *fiber.Ctx) error {
 	// Check if user has required level
 	var skill database.UserBlacksmithSkill
 	if err := database.DB.First(&skill, "user_id = ?", userID).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "blacksmith skill not found"})
+		// If skill doesn't exist, create it with level 1, xp 0
+		skill = database.UserBlacksmithSkill{
+			UserID:    userID,
+			Level:     1,
+			XP:        0,
+			UpdatedAt: time.Now(),
+		}
+		if err := database.DB.Create(&skill).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "failed to initialize blacksmith skill"})
+		}
 	}
 
 	if skill.Level < recipe.LevelRequired {
