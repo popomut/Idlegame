@@ -99,12 +99,12 @@ type CraftableItem struct {
 
 // CraftRecipeIngredient defines one ingredient requirement for a recipe
 type CraftRecipeIngredient struct {
-	ID                 uint   `gorm:"primaryKey"`
-	CraftableItemID    uint   `gorm:"not null;index"`
-	CraftableItem      CraftableItem `gorm:"foreignKey:CraftableItemID"`
-	IngredientType     string `gorm:"not null"` // "ore" or "ingot"
-	IngredientKey      string `gorm:"not null"` // ore_key or ingot_key
-	QuantityRequired   int    `gorm:"default:1"`
+	ID                 uint   `gorm:"primaryKey" json:"id"`
+	CraftableItemID    uint   `gorm:"not null;index" json:"craftable_item_id"`
+	CraftableItem      CraftableItem `gorm:"foreignKey:CraftableItemID" json:"-"`
+	IngredientType     string `gorm:"not null" json:"ingredient_type"` // "ore" or "ingot"
+	IngredientKey      string `gorm:"not null" json:"ingredient_key"` // ore_key or ingot_key
+	QuantityRequired   int    `gorm:"default:1" json:"quantity_required"`
 }
 
 // UserIngotInventory is a pivot table: one row per (user, ingot) pair

@@ -476,7 +476,7 @@ func seedCraftableItems() error {
 		{
 			Name:           "Copper Ingot",
 			Description:    "A basic ingot for crafting",
-			Icon:           "🪨",
+			Icon:           "🟠",
 			ItemKey:        "copper_ingot",
 			OutputType:     "ingot",
 			CraftingTimeMS: 5000,
@@ -488,7 +488,7 @@ func seedCraftableItems() error {
 		{
 			Name:           "Iron Ingot",
 			Description:    "A strong ingot for better tools",
-			Icon:           "⚫",
+			Icon:           "⬛",
 			ItemKey:        "iron_ingot",
 			OutputType:     "ingot",
 			CraftingTimeMS: 8000,
@@ -500,7 +500,7 @@ func seedCraftableItems() error {
 		{
 			Name:           "Gold Ingot",
 			Description:    "A precious ingot",
-			Icon:           "✨",
+			Icon:           "🟨",
 			ItemKey:        "gold_ingot",
 			OutputType:     "ingot",
 			CraftingTimeMS: 12000,
@@ -512,7 +512,7 @@ func seedCraftableItems() error {
 		{
 			Name:           "Mithril Ingot",
 			Description:    "A legendary ingot",
-			Icon:           "💎",
+			Icon:           "🟪",
 			ItemKey:        "mithril_ingot",
 			OutputType:     "ingot",
 			CraftingTimeMS: 20000,
@@ -524,7 +524,7 @@ func seedCraftableItems() error {
 		{
 			Name:           "Diamond Ingot",
 			Description:    "The rarest ingot",
-			Icon:           "💠",
+			Icon:           "🔹",
 			ItemKey:        "diamond_ingot",
 			OutputType:     "ingot",
 			CraftingTimeMS: 30000,

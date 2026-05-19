@@ -44,6 +44,12 @@ export const adminAPI = {
   createMiningLevel: (data) => api.post('/admin/mining-levels', data),
   updateMiningLevel: (level, data) => api.put(`/admin/mining-levels/${level}`, data),
   deleteMiningLevel: (level) => api.delete(`/admin/mining-levels/${level}`),
+
+  // Blacksmith levels endpoints
+  getAllBlacksmithLevels: () => api.get('/admin/blacksmith-levels'),
+  createBlacksmithLevel: (data) => api.post('/admin/blacksmith-levels', data),
+  updateBlacksmithLevel: (level, data) => api.put(`/admin/blacksmith-levels/${level}`, data),
+  deleteBlacksmithLevel: (level) => api.delete(`/admin/blacksmith-levels/${level}`),
 };
 
 

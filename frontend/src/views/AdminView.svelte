@@ -6,6 +6,7 @@
   import MonsterDropManagementView from './MonsterDropManagementView.svelte';
   import MiningLevelManagementView from './MiningLevelManagementView.svelte';
   import CraftableItemManagementView from './CraftableItemManagementView.svelte';
+  import BlacksmithLevelManagementView from './BlacksmithLevelManagementView.svelte';
 
   let currentTab = 'equipment'; // 'equipment', 'monsters', 'ores', 'monster-drops', 'mining-levels', 'craftable-items', 'blacksmith-levels'
 
@@ -86,6 +87,8 @@
     <MiningLevelManagementView />
   {:else if currentTab === 'craftable-items'}
     <CraftableItemManagementView />
+  {:else if currentTab === 'blacksmith-levels'}
+    <BlacksmithLevelManagementView />
   {/if}
 </div>
 
