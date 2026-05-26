@@ -265,6 +265,7 @@
     flex-direction: column;
     gap: 16px;
     max-width: 1200px;
+    margin: 0 auto;
   }
 
   .error-banner {
@@ -564,5 +565,95 @@
     gap: 8px;
     padding: 16px 24px;
     border-top: 1px solid var(--color-border);
+  }
+
+  @media (max-width: 600px) {
+    .management-view {
+      padding: 12px;
+    }
+
+    .card-header {
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .card-header .btn {
+      width: 100%;
+    }
+
+    .controls-card {
+      flex-direction: column;
+    }
+
+    .controls-card .btn {
+      width: 100%;
+    }
+
+    .items-table {
+      font-size: 12px;
+    }
+
+    .items-table th,
+    .items-table td {
+      padding: 8px 12px;
+    }
+
+    .actions-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .btn-edit,
+    .btn-delete {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .modal-content {
+      width: 95%;
+      max-width: none;
+    }
+
+    .modal-header {
+      padding: 16px;
+    }
+
+    .modal-header h2 {
+      font-size: 16px;
+    }
+
+    .modal-body {
+      padding: 16px;
+      gap: 16px;
+    }
+
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .modal-footer {
+      padding: 12px 16px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .btn {
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+
+    .btn-sm {
+      padding: 5px 8px;
+      font-size: 11px;
+    }
   }
 </style>

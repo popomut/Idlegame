@@ -94,6 +94,7 @@ type CraftableItem struct {
 	LevelRequired    int    `gorm:"default:1" json:"level_required"`        // blacksmith level to unlock
 	SortOrder        int    `gorm:"default:0" json:"sort_order"`            // display order in UI
 	MaxQuantity      int    `gorm:"default:0" json:"max_quantity"`          // 0 = unlimited (for ingots)
+	BasePrice        int    `gorm:"default:0" json:"base_price"`            // base sell price per unit
 	CreatedAt        time.Time `json:"created_at"`
 }
 
@@ -160,6 +161,7 @@ type OreType struct {
 	PickaxeRequired  string `gorm:"default:'none'"` // "none", "iron_pickaxe", "gold_pickaxe", "mithril_pickaxe"
 	MaxQuantity      int    `gorm:"default:0"`      // 0 = unlimited
 	SortOrder        int    `gorm:"default:0"`      // display order in UI
+	BasePrice        int    `gorm:"default:0" json:"base_price"` // base sell price per unit
 
 	CreatedAt time.Time
 }
@@ -275,6 +277,7 @@ type Equipment struct {
 
 	LevelRequired int `gorm:"default:1"`
 	SortOrder     int `gorm:"default:0"`
+	BasePrice     int `gorm:"default:0" json:"base_price"` // base buy/sell price
 
 	CreatedAt time.Time
 }

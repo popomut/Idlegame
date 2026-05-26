@@ -141,16 +141,21 @@
         {#if oreTypes.length === 0}
           <p class="loading-text">Loading cache...</p>
         {:else}
-          {#each oreTypes as ore}
-            <div class="ore-count">
-              <span class="ore-icon">{ore.Icon}</span>
-              <span class="ore-label">{ore.OreName}</span>
-              <span class="ore-qty">{($ores[ore.OreKey] ?? 0) + (pendingOres[ore.OreKey] ?? 0)}</span>
-              {#if ore.MaxQuantity > 0}
-                <span class="ore-max">/ {ore.MaxQuantity}</span>
-              {/if}
-            </div>
-          {/each}
+          {@const collectedOres = oreTypes.filter(ore => ($ores[ore.OreKey] ?? 0) + (pendingOres[ore.OreKey] ?? 0) > 0)}
+          {#if collectedOres.length === 0}
+            <p class="loading-text">No materials collected yet.</p>
+          {:else}
+            {#each collectedOres as ore}
+              <div class="ore-count">
+                <span class="ore-icon">{ore.Icon}</span>
+                <span class="ore-label">{ore.OreName}</span>
+                <span class="ore-qty">{($ores[ore.OreKey] ?? 0) + (pendingOres[ore.OreKey] ?? 0)}</span>
+                {#if ore.MaxQuantity > 0}
+                  <span class="ore-max">/ {ore.MaxQuantity}</span>
+                {/if}
+              </div>
+            {/each}
+          {/if}
         {/if}
       </div>
     {/if}

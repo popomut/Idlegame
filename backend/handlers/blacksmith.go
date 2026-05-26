@@ -149,6 +149,7 @@ func GetCraftableItems(c *fiber.Ctx) error {
 		XPPerCraft       int                                     `json:"xp_per_craft"`
 		LevelRequired    int                                     `json:"level_required"`
 		IsUnlocked       bool                                    `json:"is_unlocked"`
+		MaxQuantity      int                                     `json:"max_quantity"`
 		Ingredients      []database.CraftRecipeIngredient        `json:"ingredients"`
 	}
 
@@ -166,6 +167,7 @@ func GetCraftableItems(c *fiber.Ctx) error {
 			XPPerCraft:     recipe.XPPerCraft,
 			LevelRequired:  recipe.LevelRequired,
 			IsUnlocked:     skill.Level >= recipe.LevelRequired,
+			MaxQuantity:    recipe.MaxQuantity,
 			Ingredients:    ingredients,
 		})
 	}
@@ -231,7 +233,6 @@ func StartCrafting(c *fiber.Ctx) error {
 	database.DB.Where("craftable_item_id = ?", req.CraftableItemID).Find(&ingredients)
 
 	for _, ing := range ingredients {
-		var hasIngredient int64
 		if ing.IngredientType == "ore" {
 			var oreType database.OreType
 			database.DB.Where("ore_key = ?", ing.IngredientKey).First(&oreType)
@@ -241,12 +242,8 @@ func StartCrafting(c *fiber.Ctx) error {
 				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "not enough " + ing.IngredientKey})
 			}
 		} else if ing.IngredientType == "ingot" {
-			database.DB.Model(&database.UserIngotInventory{}).
-				Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).
-				Count(&hasIngredient)
-			// Create if doesn't exist
 			var ingotItem database.UserIngotInventory
-			database.DB.FirstOrCreate(&ingotItem, database.UserIngotInventory{UserID: userID, IngotKey: ing.IngredientKey})
+			database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&ingotItem)
 			if ingotItem.Quantity < ing.QuantityRequired {
 				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "not enough " + ing.IngredientKey})
 			}
@@ -255,9 +252,9 @@ func StartCrafting(c *fiber.Ctx) error {
 
 	// Stop any existing active session first
 	var existingSession database.BlacksmithSession
-	database.DB.Where("user_id = ? AND status = ?", userID, "active").First(&existingSession)
+	database.DB.Where("user_id = ? AND status = ?", userID, "active").Preload("CraftableItem").First(&existingSession)
 	if existingSession.ID != 0 {
-		database.DB.Model(&existingSession).Update("status", "completed")
+		CalculateAndSaveCraftingGains(userID, existingSession)
 	}
 
 	// Create new crafting session
@@ -308,13 +305,24 @@ func CalculateOfflineCraftingGains(userID uint, session database.BlacksmithSessi
 func CalculateAndSaveCraftingGains(userID uint, session database.BlacksmithSession) int {
 	// Validate recipe still exists
 	if session.CraftableItem.ID == 0 {
-		// Recipe was deleted - produce nothing
+		return 0
+	}
+
+	// Atomically claim session — prevents double-award on concurrent stop calls
+	claimed := database.DB.Exec(
+		"UPDATE blacksmith_sessions SET status = 'completed' WHERE id = ? AND status = 'active'",
+		session.ID,
+	)
+	if claimed.RowsAffected == 0 {
 		return 0
 	}
 
 	now := time.Now().UTC()
 	elapsed := now.Sub(session.StartedAt)
-	maxIngotsProduced := int(elapsed.Milliseconds()) / session.CraftableItem.CraftingTimeMS
+	maxIngotsProduced := 0
+	if session.CraftableItem.CraftingTimeMS > 0 {
+		maxIngotsProduced = int(elapsed.Milliseconds()) / session.CraftableItem.CraftingTimeMS
+	}
 
 	recipe := session.CraftableItem
 	var ingredients []database.CraftRecipeIngredient
@@ -419,12 +427,6 @@ func StopCrafting(c *fiber.Ctx) error {
 
 	ingotsProduced := CalculateAndSaveCraftingGains(userID, session)
 
-	now := time.Now().UTC()
-	database.DB.Model(&session).Updates(map[string]interface{}{
-		"status":   "completed",
-		"ended_at": now,
-	})
-
 	recipe := session.CraftableItem
 	database.LogActivity(userID, fmt.Sprintf("Stopped crafting %s. Produced %d ingots.", recipe.Name, ingotsProduced))
 
@@ -500,7 +502,10 @@ func GetCraftingStatus(c *fiber.Ctx) error {
 			// Only calculate pending ingots if we can still craft
 			now := time.Now().UTC()
 			elapsed := now.Sub(session.StartedAt)
-			pendingIngots := int(elapsed.Milliseconds()) / recipe.CraftingTimeMS
+			pendingIngots := 0
+			if recipe.CraftingTimeMS > 0 {
+				pendingIngots = int(elapsed.Milliseconds()) / recipe.CraftingTimeMS
+			}
 
 			// Apply max quantity cap
 			if recipe.MaxQuantity > 0 {

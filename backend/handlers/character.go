@@ -144,14 +144,17 @@ func AwardXP(userID uint, amount int64) {
 		return
 	}
 
+	// Atomic increment — prevents lost updates from concurrent awards
+	database.DB.Exec("UPDATE users SET xp = xp + ? WHERE id = ?", amount, userID)
+
+	// Reload fresh state to check level-up thresholds
 	var user database.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
 		return
 	}
 
-	user.XP += amount
-
 	// Check for level-up (loop in case of multiple levels gained at once)
+	leveled := false
 	for {
 		nextLevel := user.Level + 1
 		var nextCL database.CharacterLevel
@@ -171,11 +174,14 @@ func AwardXP(userID uint, amount int64) {
 		user.Str = nextCL.Str
 		user.Int = nextCL.Int
 		user.Dex = nextCL.Dex
+		leveled = true
 
 		database.LogActivity(userID, "Level up! Now Rank "+itoa(nextLevel))
 	}
 
-	database.DB.Save(&user)
+	if leveled {
+		database.DB.Save(&user)
+	}
 }
 
 func itoa(n int) string {

@@ -30,7 +30,7 @@ func main() {
                 AllowOriginsFunc: func(origin string) bool { return true },
                 AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
                 AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
-                AllowCredentials: true,
+                AllowCredentials: false,
         }))
 
         // Public routes (no auth required)
@@ -76,6 +76,7 @@ func main() {
         api.Get("/equipment/slots", handlers.GetEquippedSlots)
         api.Post("/equipment/equip", handlers.EquipItem)
         api.Post("/equipment/unequip", handlers.UnequipSlot)
+        api.Post("/equipment/sell", handlers.SellEquipment)
         api.Post("/equipment/give", handlers.GiveEquipment)
 
         // Map routes (legacy turn-based combat)

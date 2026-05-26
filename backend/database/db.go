@@ -134,6 +134,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "none",
 			MaxQuantity:     500,
 			SortOrder:       1,
+			BasePrice:       2,
 		},
 		{
 			OreKey:          "silver_ore",
@@ -147,6 +148,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "none",
 			MaxQuantity:     400,
 			SortOrder:       2,
+			BasePrice:       4,
 		},
 		{
 			OreKey:          "iron_ore",
@@ -160,6 +162,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "none",
 			MaxQuantity:     300,
 			SortOrder:       3,
+			BasePrice:       5,
 		},
 		{
 			OreKey:          "bronze_ore",
@@ -173,6 +176,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "none",
 			MaxQuantity:     350,
 			SortOrder:       4,
+			BasePrice:       5,
 		},
 		{
 			OreKey:          "gold_ore",
@@ -186,6 +190,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "iron_pickaxe",
 			MaxQuantity:     100,
 			SortOrder:       5,
+			BasePrice:       15,
 		},
 		{
 			OreKey:          "platinum_ore",
@@ -199,6 +204,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "iron_pickaxe",
 			MaxQuantity:     80,
 			SortOrder:       6,
+			BasePrice:       20,
 		},
 		{
 			OreKey:          "emerald_ore",
@@ -212,6 +218,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "iron_pickaxe",
 			MaxQuantity:     70,
 			SortOrder:       7,
+			BasePrice:       25,
 		},
 		{
 			OreKey:          "mithril_ore",
@@ -225,6 +232,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "gold_pickaxe",
 			MaxQuantity:     50,
 			SortOrder:       8,
+			BasePrice:       40,
 		},
 		{
 			OreKey:          "sapphire_ore",
@@ -238,6 +246,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "gold_pickaxe",
 			MaxQuantity:     40,
 			SortOrder:       9,
+			BasePrice:       50,
 		},
 		{
 			OreKey:          "ruby_ore",
@@ -251,6 +260,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "gold_pickaxe",
 			MaxQuantity:     35,
 			SortOrder:       10,
+			BasePrice:       60,
 		},
 		{
 			OreKey:          "titanium_ore",
@@ -264,6 +274,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "mithril_pickaxe",
 			MaxQuantity:     30,
 			SortOrder:       11,
+			BasePrice:       80,
 		},
 		{
 			OreKey:          "diamond_ore",
@@ -277,6 +288,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "mithril_pickaxe",
 			MaxQuantity:     25,
 			SortOrder:       12,
+			BasePrice:       100,
 		},
 		{
 			OreKey:          "obsidian_ore",
@@ -290,6 +302,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "mithril_pickaxe",
 			MaxQuantity:     20,
 			SortOrder:       13,
+			BasePrice:       110,
 		},
 		{
 			OreKey:          "orichalcum_ore",
@@ -303,6 +316,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "mithril_pickaxe",
 			MaxQuantity:     15,
 			SortOrder:       14,
+			BasePrice:       140,
 		},
 		{
 			OreKey:          "celestial_ore",
@@ -316,6 +330,7 @@ func seedOreTypes() error {
 			PickaxeRequired: "mithril_pickaxe",
 			MaxQuantity:     10,
 			SortOrder:       15,
+			BasePrice:       200,
 		},
 	}
 
@@ -326,8 +341,10 @@ func seedOreTypes() error {
 		if result.Error != nil {
 			// Not found — create
 			DB.Create(&ore)
+		} else if existing.BasePrice == 0 && ore.BasePrice > 0 {
+			// Backfill base_price for existing rows that never had it
+			DB.Model(&existing).Update("base_price", ore.BasePrice)
 		}
-		// If found, do nothing — preserve user edits from admin panel
 	}
 
 	return nil
@@ -470,7 +487,6 @@ func seedBlacksmithLevels() error {
 	return nil
 }
 
-// seedCraftableItems seeds the recipe master table
 func seedCraftableItems() error {
 	recipes := []CraftableItem{
 		{
@@ -484,6 +500,7 @@ func seedCraftableItems() error {
 			LevelRequired:  1,
 			MaxQuantity:    500,
 			SortOrder:      1,
+			BasePrice:      15,
 		},
 		{
 			Name:           "Iron Ingot",
@@ -496,6 +513,7 @@ func seedCraftableItems() error {
 			LevelRequired:  5,
 			MaxQuantity:    300,
 			SortOrder:      2,
+			BasePrice:      30,
 		},
 		{
 			Name:           "Gold Ingot",
@@ -508,6 +526,7 @@ func seedCraftableItems() error {
 			LevelRequired:  15,
 			MaxQuantity:    100,
 			SortOrder:      3,
+			BasePrice:      80,
 		},
 		{
 			Name:           "Mithril Ingot",
@@ -520,6 +539,7 @@ func seedCraftableItems() error {
 			LevelRequired:  30,
 			MaxQuantity:    50,
 			SortOrder:      4,
+			BasePrice:      200,
 		},
 		{
 			Name:           "Diamond Ingot",
@@ -532,6 +552,7 @@ func seedCraftableItems() error {
 			LevelRequired:  50,
 			MaxQuantity:    25,
 			SortOrder:      5,
+			BasePrice:      500,
 		},
 	}
 
@@ -605,8 +626,11 @@ func seedCraftableItems() error {
 					QuantityRequired: 3,
 				})
 			}
+		}  else if existing.BasePrice == 0 && recipe.BasePrice > 0 {
+			// Backfill base_price for existing rows
+			DB.Model(&existing).Update("base_price", recipe.BasePrice)
 		}
-		// If found, do nothing — preserve user edits from admin panel
+		// If found (and price set), do nothing — preserve user edits from admin panel
 	}
 	return nil
 }
@@ -731,7 +755,7 @@ func seedEquipment() error {
 			Description: "A corroded knife salvaged from a fallen soldier. Better than bare hands.",
 			Slot: "weapon", Rarity: "common",
 			BaseAttack: 5, AttackType: "physical",
-			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 1,
+			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 1, BasePrice: 50,
 		},
 		{
 			EquipmentKey: "combat_pistol",
@@ -739,7 +763,7 @@ func seedEquipment() error {
 			Description: "Standard-issue sidearm. Reliable even after years of neglect.",
 			Slot: "weapon", Rarity: "uncommon",
 			BaseAttack: 12, AttackType: "physical",
-			ModifiersJSON: `[{"type":"dex","value":2}]`, LevelRequired: 5, SortOrder: 2,
+			ModifiersJSON: `[{"type":"dex","value":2}]`, LevelRequired: 5, SortOrder: 2, BasePrice: 200,
 		},
 		{
 			EquipmentKey: "incendiary_launcher",
@@ -747,7 +771,7 @@ func seedEquipment() error {
 			Description: "Fires canisters of burning chemical gel. Leaves nothing but ash.",
 			Slot: "weapon", Rarity: "rare",
 			BaseAttack: 20, AttackType: "fire",
-			ModifiersJSON: `[{"type":"resist_fire","value":10}]`, LevelRequired: 15, SortOrder: 3,
+			ModifiersJSON: `[{"type":"resist_fire","value":10}]`, LevelRequired: 15, SortOrder: 3, BasePrice: 500,
 		},
 		{
 			EquipmentKey: "tesla_coil_gun",
@@ -755,7 +779,7 @@ func seedEquipment() error {
 			Description: "Repurposed power-grid tech. Arcs through multiple targets.",
 			Slot: "weapon", Rarity: "epic",
 			BaseAttack: 30, AttackType: "lightning",
-			ModifiersJSON: `[{"type":"dex","value":3},{"type":"int","value":3}]`, LevelRequired: 30, SortOrder: 4,
+			ModifiersJSON: `[{"type":"dex","value":3},{"type":"int","value":3}]`, LevelRequired: 30, SortOrder: 4, BasePrice: 1200,
 		},
 		{
 			EquipmentKey: "venom_blade",
@@ -763,7 +787,7 @@ func seedEquipment() error {
 			Description: "Coated in synthesised toxin. Each cut festers.",
 			Slot: "weapon", Rarity: "rare",
 			BaseAttack: 18, AttackType: "poison",
-			ModifiersJSON: `[{"type":"dex","value":5}]`, LevelRequired: 20, SortOrder: 5,
+			ModifiersJSON: `[{"type":"dex","value":5}]`, LevelRequired: 20, SortOrder: 5, BasePrice: 600,
 		},
 		// ── HEAD ─────────────────────────────────────────────────────────────
 		{
@@ -772,7 +796,7 @@ func seedEquipment() error {
 			Description: "Welded together from vehicle panels. Crude but effective.",
 			Slot: "head", Rarity: "common",
 			BaseDefence: 3,
-			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 10,
+			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 10, BasePrice: 40,
 		},
 		{
 			EquipmentKey: "military_helmet",
@@ -780,7 +804,7 @@ func seedEquipment() error {
 			Description: "Pre-war composite helmet. Still rated for combat.",
 			Slot: "head", Rarity: "uncommon",
 			BaseDefence: 6,
-			ModifiersJSON: `[{"type":"resist_fire","value":10}]`, LevelRequired: 5, SortOrder: 11,
+			ModifiersJSON: `[{"type":"resist_fire","value":10}]`, LevelRequired: 5, SortOrder: 11, BasePrice: 180,
 		},
 		{
 			EquipmentKey: "hazmat_hood",
@@ -788,7 +812,7 @@ func seedEquipment() error {
 			Description: "Full-face chemical protection. Filters airborne toxins.",
 			Slot: "head", Rarity: "rare",
 			BaseDefence: 4,
-			ModifiersJSON: `[{"type":"resist_poison","value":30}]`, LevelRequired: 15, SortOrder: 12,
+			ModifiersJSON: `[{"type":"resist_poison","value":30}]`, LevelRequired: 15, SortOrder: 12, BasePrice: 450,
 		},
 		// ── CHEST ────────────────────────────────────────────────────────────
 		{
@@ -797,7 +821,7 @@ func seedEquipment() error {
 			Description: "Strips of leather sewn over a damaged flak jacket.",
 			Slot: "chest", Rarity: "common",
 			BaseDefence: 4,
-			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 20,
+			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 20, BasePrice: 60,
 		},
 		{
 			EquipmentKey: "kevlar_vest",
@@ -805,7 +829,7 @@ func seedEquipment() error {
 			Description: "Multi-layer ballistic weave. Stops fragments and pistol rounds.",
 			Slot: "chest", Rarity: "uncommon",
 			BaseDefence: 10,
-			ModifiersJSON: `[{"type":"resist_fire","value":15}]`, LevelRequired: 8, SortOrder: 21,
+			ModifiersJSON: `[{"type":"resist_fire","value":15}]`, LevelRequired: 8, SortOrder: 21, BasePrice: 250,
 		},
 		{
 			EquipmentKey: "nbc_suit",
@@ -813,7 +837,7 @@ func seedEquipment() error {
 			Description: "Nuclear-Biological-Chemical rated full-body suit. Invaluable in contaminated zones.",
 			Slot: "chest", Rarity: "rare",
 			BaseDefence: 8,
-			ModifiersJSON: `[{"type":"resist_poison","value":40},{"type":"resist_chaos","value":20}]`, LevelRequired: 20, SortOrder: 22,
+			ModifiersJSON: `[{"type":"resist_poison","value":40},{"type":"resist_chaos","value":20}]`, LevelRequired: 20, SortOrder: 22, BasePrice: 700,
 		},
 		// ── LEGS ─────────────────────────────────────────────────────────────
 		{
@@ -822,7 +846,7 @@ func seedEquipment() error {
 			Description: "Sheet metal strapped to canvas. Uncomfortable but protective.",
 			Slot: "legs", Rarity: "common",
 			BaseDefence: 3,
-			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 30,
+			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 30, BasePrice: 40,
 		},
 		{
 			EquipmentKey: "combat_pants",
@@ -830,7 +854,7 @@ func seedEquipment() error {
 			Description: "Reinforced tactical trousers with knee guards.",
 			Slot: "legs", Rarity: "uncommon",
 			BaseDefence: 7,
-			ModifiersJSON: `[{"type":"dex","value":2}]`, LevelRequired: 5, SortOrder: 31,
+			ModifiersJSON: `[{"type":"dex","value":2}]`, LevelRequired: 5, SortOrder: 31, BasePrice: 180,
 		},
 		// ── SHIELD ───────────────────────────────────────────────────────────
 		{
@@ -839,7 +863,7 @@ func seedEquipment() error {
 			Description: "A car door repurposed as a shield. Heavy but solid.",
 			Slot: "shield", Rarity: "common",
 			BaseDefence: 5,
-			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 40,
+			ModifiersJSON: "[]", LevelRequired: 1, SortOrder: 40, BasePrice: 50,
 		},
 		{
 			EquipmentKey: "ballistic_shield",
@@ -847,7 +871,7 @@ func seedEquipment() error {
 			Description: "Police-grade riot shield. Rated for high-velocity impacts.",
 			Slot: "shield", Rarity: "uncommon",
 			BaseDefence: 12,
-			ModifiersJSON: `[{"type":"resist_fire","value":10}]`, LevelRequired: 10, SortOrder: 41,
+			ModifiersJSON: `[{"type":"resist_fire","value":10}]`, LevelRequired: 10, SortOrder: 41, BasePrice: 220,
 		},
 		// ── RINGS ────────────────────────────────────────────────────────────
 		{
@@ -855,21 +879,21 @@ func seedEquipment() error {
 			Name: "Strength Band", Icon: "💪",
 			Description: "A weighted training band that permanently enhances muscle output.",
 			Slot: "ring", Rarity: "common",
-			ModifiersJSON: `[{"type":"str","value":3}]`, LevelRequired: 1, SortOrder: 50,
+			ModifiersJSON: `[{"type":"str","value":3}]`, LevelRequired: 1, SortOrder: 50, BasePrice: 60,
 		},
 		{
 			EquipmentKey: "toxin_ring",
 			Name: "Toxin Ring", Icon: "💍",
 			Description: "Contains a slow-release antitoxin compound. Grants poison resistance.",
 			Slot: "ring", Rarity: "uncommon",
-			ModifiersJSON: `[{"type":"resist_poison","value":20}]`, LevelRequired: 5, SortOrder: 51,
+			ModifiersJSON: `[{"type":"resist_poison","value":20}]`, LevelRequired: 5, SortOrder: 51, BasePrice: 200,
 		},
 		{
 			EquipmentKey: "lightning_ward",
 			Name: "Lightning Ward", Icon: "⚡",
 			Description: "A Faraday-cage ring that dissipates electrical energy.",
 			Slot: "ring", Rarity: "rare",
-			ModifiersJSON: `[{"type":"resist_lightning","value":25}]`, LevelRequired: 15, SortOrder: 52,
+			ModifiersJSON: `[{"type":"resist_lightning","value":25}]`, LevelRequired: 15, SortOrder: 52, BasePrice: 450,
 		},
 		// ── AMULET ───────────────────────────────────────────────────────────
 		{
@@ -877,14 +901,14 @@ func seedEquipment() error {
 			Name: "Dog Tag Amulet", Icon: "🪪",
 			Description: "The tags of a fallen ally. Wearing them sharpens your edge.",
 			Slot: "amulet", Rarity: "common",
-			ModifiersJSON: `[{"type":"str","value":2},{"type":"dex","value":2}]`, LevelRequired: 1, SortOrder: 60,
+			ModifiersJSON: `[{"type":"str","value":2},{"type":"dex","value":2}]`, LevelRequired: 1, SortOrder: 60, BasePrice: 70,
 		},
 		{
 			EquipmentKey: "commanders_amulet",
 			Name: "Commander's Amulet", Icon: "🎖️",
 			Description: "Recovered from a high-ranking officer. Radiates authority and power.",
 			Slot: "amulet", Rarity: "epic",
-			ModifiersJSON: `[{"type":"str","value":5},{"type":"int","value":5},{"type":"dex","value":5}]`, LevelRequired: 40, SortOrder: 61,
+			ModifiersJSON: `[{"type":"str","value":5},{"type":"int","value":5},{"type":"dex","value":5}]`, LevelRequired: 40, SortOrder: 61, BasePrice: 1500,
 		},
 	}
 
@@ -894,8 +918,11 @@ func seedEquipment() error {
 		if result.Error != nil {
 			// Equipment doesn't exist, create it
 			DB.Create(&item)
+		} else if existing.BasePrice == 0 && item.BasePrice > 0 {
+			// Backfill base_price for existing rows
+			DB.Model(&existing).Update("base_price", item.BasePrice)
 		}
-		// If it exists, skip it (preserve any admin modifications)
+		// If it exists (and price set), skip (preserve any admin modifications)
 	}
 	return nil
 }

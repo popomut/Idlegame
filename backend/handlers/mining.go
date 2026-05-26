@@ -54,12 +54,24 @@ func StartMining(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "ore not found"})
 	}
 
+	// Check mining level requirement
+	var skill database.UserMiningSkill
+	database.DB.Where("user_id = ?", userID).First(&skill)
+	skillLevel := skill.Level
+	if skillLevel == 0 {
+		skillLevel = 1
+	}
+	if skillLevel < ore.LevelRequired {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": fmt.Sprintf("mining level %d required", ore.LevelRequired),
+		})
+	}
+
 	// Stop any existing active session first
 	var existingSession database.MiningSession
 	database.DB.Where("user_id = ? AND status = ?", userID, "active").First(&existingSession)
 	if existingSession.ID != 0 {
 		CalculateAndSaveOreGains(userID, existingSession)
-		database.DB.Model(&existingSession).Update("status", "completed")
 	}
 
 	session := database.MiningSession{
@@ -93,12 +105,6 @@ func StopMining(c *fiber.Ctx) error {
 	}
 
 	oresGained := CalculateAndSaveOreGains(userID, session)
-
-	now := time.Now().UTC()
-	database.DB.Model(&session).Updates(map[string]interface{}{
-		"status":   "completed",
-		"ended_at": now,
-	})
 
 	var ore database.OreType
 	database.DB.First(&ore, session.OreID)
@@ -138,7 +144,10 @@ func GetMiningStatus(c *fiber.Ctx) error {
 	if isActive {
 		now := time.Now().UTC()
 		elapsed := now.Sub(session.StartedAt)
-		pendingOres := int(elapsed.Milliseconds()) / ore.MiningTimeMS
+		pendingOres := 0
+		if ore.MiningTimeMS > 0 {
+			pendingOres = int(elapsed.Milliseconds()) / ore.MiningTimeMS
+		}
 
 		if ore.MaxQuantity > 0 {
 			existing := currentOres[ore.OreKey]
@@ -179,13 +188,25 @@ func GetMiningStatus(c *fiber.Ctx) error {
 // CalculateAndSaveOreGains calculates earned ores using server timestamps and saves to pivot table.
 // Returns the number of ores earned.
 func CalculateAndSaveOreGains(userID uint, session database.MiningSession) int {
+	// Atomically claim session — prevents double-award on concurrent stop calls
+	claimed := database.DB.Exec(
+		"UPDATE mining_sessions SET status = 'completed', ended_at = ? WHERE id = ? AND status = 'active'",
+		time.Now().UTC(), session.ID,
+	)
+	if claimed.RowsAffected == 0 {
+		return 0
+	}
+
 	now := time.Now().UTC()
 	elapsed := now.Sub(session.StartedAt)
 
 	var ore database.OreType
 	database.DB.First(&ore, session.OreID)
 
-	oresEarned := int(elapsed.Milliseconds()) / ore.MiningTimeMS
+	oresEarned := 0
+	if ore.MiningTimeMS > 0 {
+		oresEarned = int(elapsed.Milliseconds()) / ore.MiningTimeMS
+	}
 	if oresEarned == 0 {
 		return 0
 	}
@@ -232,7 +253,7 @@ func CalculateOfflineGains(userID uint, session database.MiningSession) OfflineG
 	elapsed := now.Sub(session.StartedAt)
 	miningTimePerOre := time.Duration(ore.MiningTimeMS) * time.Millisecond
 
-	if elapsed > miningTimePerOre {
+	if elapsed > miningTimePerOre && ore.MiningTimeMS > 0 {
 		gains.WasOffline = true
 		gains.OfflineTime = elapsed.Milliseconds()
 		gains.OresGained = int(elapsed.Milliseconds()) / ore.MiningTimeMS

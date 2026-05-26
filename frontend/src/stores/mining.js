@@ -9,6 +9,7 @@ export const isLoadingMining = writable(false);
 export const miningProgress = writable(0); // 0-100 progress bar
 
 let globalProgressInterval = null;
+let isStoppingMining = false;
 
 function startGlobalProgressUpdater(miningTimeMS) {
   if (globalProgressInterval) {
@@ -96,7 +97,10 @@ export async function checkMiningStatus() {
     const status = response.data;
 
     if (status.offline_gains && status.offline_gains.was_offline) {
+      if (isStoppingMining) return;
+      isStoppingMining = true;
       const gains = status.offline_gains;
+      activeMining.set(null); // clear first to prevent re-entrant calls
       offlineGains.set({
         wasOffline: true,
         timeMs: gains.offline_time_ms,
@@ -105,6 +109,7 @@ export async function checkMiningStatus() {
       });
       addLogEntry(`You gained ${gains.ores_gained} ${gains.ore_name} while away!`);
       await stopMining();
+      isStoppingMining = false;
       return;
     }
 

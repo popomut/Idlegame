@@ -215,7 +215,8 @@
 <style>
   .view-monster-drops {
     padding: 20px;
-    max-width: 1000px;
+    max-width: 1200px;
+    margin: 0 auto;
   }
 
   .header {
@@ -450,5 +451,80 @@
 
   .cancel-btn:hover {
     background: var(--color-bg-hover);
+  }
+
+  @media (max-width: 600px) {
+    .view-admin {
+      padding: 12px;
+    }
+
+    .header {
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .header button {
+      width: 100%;
+    }
+
+    .drops-table {
+      font-size: 12px;
+    }
+
+    .drops-table th,
+    .drops-table td {
+      padding: 8px 6px;
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 6px;
+      font-size: 11px;
+    }
+
+    .modal-content {
+      width: 95%;
+      max-width: none;
+      padding: 16px;
+      max-height: 90vh;
+    }
+
+    .modal-content h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+
+    .modal-body {
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+
+    .form-group input,
+    .form-group select {
+      padding: 8px;
+      font-size: 13px;
+    }
+
+    .modal-actions {
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .save-btn,
+    .cancel-btn {
+      padding: 8px 12px;
+      font-size: 12px;
+    }
   }
 </style>

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 	"idlegame-backend/database"
 )
 
@@ -28,6 +29,7 @@ type EquipmentResponse struct {
 	BaseDefence  int                 `json:"base_defence"`
 	Modifiers    []EquipmentModifier `json:"modifiers"`
 	LevelRequired int                `json:"level_required"`
+	BasePrice    int                 `json:"base_price"`
 }
 
 type UserEquipmentResponse struct {
@@ -66,6 +68,7 @@ func toEquipmentResponse(e database.Equipment) EquipmentResponse {
 		BaseDefence:   e.BaseDefence,
 		Modifiers:     parseModifiers(e.ModifiersJSON),
 		LevelRequired: e.LevelRequired,
+		BasePrice:     e.BasePrice,
 	}
 }
 
@@ -211,8 +214,7 @@ func EquipItem(c *fiber.Ctx) error {
 
 // UnequipSlot clears a slot.
 // POST /api/equipment/unequip  body: { "slot": "weapon" }
-func UnequipSlot(c *fiber.Ctx) error {
-	userID := c.Locals("user_id").(uint)
+func UnequipSlot(c *fiber.Ctx) error {	userID := c.Locals("user_id").(uint)
 
 	var body struct {
 		Slot string `json:"slot"`
@@ -230,8 +232,7 @@ func UnequipSlot(c *fiber.Ctx) error {
 
 // GiveEquipment grants an equipment item to the player (for testing / future drop system).
 // POST /api/equipment/give  body: { "equipment_key": "rusty_blade" }
-func GiveEquipment(c *fiber.Ctx) error {
-	userID := c.Locals("user_id").(uint)
+func GiveEquipment(c *fiber.Ctx) error {	userID := c.Locals("user_id").(uint)
 
 	var body struct {
 		EquipmentKey string `json:"equipment_key"`
@@ -257,6 +258,75 @@ func GiveEquipment(c *fiber.Ctx) error {
 
 // ── Admin endpoints (for development only — delete before production) ──────────
 
+// SellEquipment removes items from the user's bag and awards gold.
+// POST /api/equipment/sell  body: { "user_equipment_ids": [1, 2, 3] }
+func SellEquipment(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
+
+	var body struct {
+		UserEquipmentIDs []uint `json:"user_equipment_ids"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+	if len(body.UserEquipmentIDs) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "No items selected"})
+	}
+
+	// Load equipped slot IDs for this user so we can block selling them
+	var slotRows []database.UserEquippedSlot
+	database.DB.Where("user_id = ?", userID).Find(&slotRows)
+	equippedIDs := make(map[uint]bool)
+	for _, s := range slotRows {
+		if s.UserEquipmentID != 0 {
+			equippedIDs[s.UserEquipmentID] = true
+		}
+	}
+
+	// Validate each item and compute total gold
+	var totalGold int64
+	var validIDs []uint
+	for _, ueID := range body.UserEquipmentIDs {
+		if equippedIDs[ueID] {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot sell an equipped item — unequip it first"})
+		}
+		var ue database.UserEquipment
+		if err := database.DB.Preload("Equipment").
+			Where("id = ? AND user_id = ?", ueID, userID).
+			First(&ue).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Item not found in your bag"})
+		}
+		totalGold += int64(ue.Equipment.BasePrice)
+		validIDs = append(validIDs, ueID)
+	}
+
+	if totalGold == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "Selected items have no sell value"})
+	}
+
+	// Delete items + award gold atomically in a transaction
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id IN ? AND user_id = ?", validIDs, userID).
+			Delete(&database.UserEquipment{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&database.User{}).
+			Where("id = ?", userID).
+			UpdateColumn("money", gorm.Expr("money + ?", totalGold)).
+			Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to complete sale"})
+	}
+
+	return c.JSON(fiber.Map{
+		"gold_earned": totalGold,
+		"items_sold":  len(validIDs),
+	})
+}
 // AdminGetAllEquipment returns all equipment from the master table.
 // GET /api/admin/equipment
 func AdminGetAllEquipment(c *fiber.Ctx) error {

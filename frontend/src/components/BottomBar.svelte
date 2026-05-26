@@ -1,6 +1,7 @@
 <script>
   import { canGoBack, goBack, goHome, backOverride } from '../stores/navigation.js';
   import { activeMining, miningProgress } from '../stores/mining.js';
+  import { activeCrafting, craftingProgress } from '../stores/blacksmith.js';
 
   function handleBack() {
     if ($backOverride) {
@@ -32,6 +33,16 @@
           <span class="status-text">Extracting {$activeMining.oreName}...</span>
           <div class="progress-bar-small">
             <div class="progress-fill" style="width: {$miningProgress}%"></div>
+          </div>
+        </div>
+      </div>
+    {:else if $activeCrafting}
+      <div class="activity-status">
+        <span class="status-icon">&#x2692;&#xFE0F;</span>
+        <div class="status-content">
+          <span class="status-text">Crafting {$activeCrafting.recipeName}...</span>
+          <div class="progress-bar-small">
+            <div class="progress-fill crafting-fill" style="width: {$craftingProgress}%"></div>
           </div>
         </div>
       </div>
@@ -167,6 +178,10 @@
     height: 100%;
     background: linear-gradient(90deg, var(--color-magic-bright), var(--color-gold-bright));
     transition: width 0.05s linear;
+  }
+
+  .progress-fill.crafting-fill {
+    background: linear-gradient(90deg, var(--color-danger), var(--color-danger-bright));
   }
 
   @keyframes pulse {

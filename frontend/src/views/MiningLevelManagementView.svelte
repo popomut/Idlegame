@@ -184,6 +184,9 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    padding: 20px 16px;
+    max-width: 1200px;
+    margin: 0 auto;
   }
 
   .loading {
@@ -384,5 +387,58 @@
     padding: 16px;
     border-top: 1px solid var(--color-border);
     justify-content: flex-end;
+  }
+
+  @media (max-width: 600px) {
+    .view-admin-mining {
+      padding: 12px;
+    }
+
+    .header {
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .title {
+      font-size: 14px;
+    }
+
+    .btn {
+      padding: 6px 10px;
+      font-size: 11px;
+    }
+
+    .data-table {
+      font-size: 12px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 8px 6px;
+    }
+
+    .btn-small {
+      padding: 3px 6px;
+      font-size: 10px;
+      margin-right: 2px;
+    }
+
+    .modal {
+      max-width: 95%;
+    }
+
+    .modal-header h4 {
+      font-size: 14px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group input {
+      padding: 6px;
+      font-size: 12px;
+    }
   }
 </style>

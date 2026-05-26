@@ -11,6 +11,7 @@ export const craftingProgress = writable(0); // 0-100 progress bar (per ingot cy
 export const ingotInventory = writable({});
 
 let globalProgressInterval = null;
+let isStoppingCrafting = false;
 
 function startGlobalProgressUpdater(craftingTimeMS) {
   if (globalProgressInterval) {
@@ -103,7 +104,10 @@ export async function checkCraftingStatus() {
 
     // Handle offline crafting gains
     if (status.offline_gains && status.offline_gains.was_offline) {
+      if (isStoppingCrafting) return;
+      isStoppingCrafting = true;
       const gains = status.offline_gains;
+      activeCrafting.set(null); // clear first to prevent re-entrant calls
       offlineCraftingGains.set({
         wasOffline: true,
         timeMs: gains.offline_time_ms,
@@ -112,6 +116,7 @@ export async function checkCraftingStatus() {
       });
       addLogEntry(`You crafted ${gains.ingots_gained} ${gains.recipe_name} while away!`);
       await stopCrafting();
+      isStoppingCrafting = false;
       return;
     }
 

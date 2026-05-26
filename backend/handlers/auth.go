@@ -4,8 +4,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"idlegame-backend/database"
 	"idlegame-backend/utils"
+	"os"
 	"time"
 )
+
+func isSecureCookie() bool {
+	return os.Getenv("ENV") == "production"
+}
 
 // RegisterRequest represents user registration data
 type RegisterRequest struct {
@@ -117,9 +122,12 @@ func Register(c *fiber.Ctx) error {
 
 	result := database.DB.Create(&user)
 	if result.Error != nil {
-		// Check if user already exists
-		if result.Error.Error() == "UNIQUE constraint failed: users.username" {
+		errMsg := result.Error.Error()
+		if errMsg == "UNIQUE constraint failed: users.username" {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "username already taken"})
+		}
+		if errMsg == "UNIQUE constraint failed: users.email" {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "email already registered"})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create user"})
 	}
@@ -145,7 +153,7 @@ func Register(c *fiber.Ctx) error {
 		Value:    token,
 		Expires:  time.Now().Add(24 * 7 * time.Hour), // 7 days
 		HTTPOnly: true,
-		Secure:   false,
+		Secure:   isSecureCookie(),
 		SameSite: "Lax",
 	})
 
@@ -187,7 +195,7 @@ func Login(c *fiber.Ctx) error {
 		Value:    token,
 		Expires:  time.Now().Add(24 * 7 * time.Hour),
 		HTTPOnly: true,
-		Secure:   false,
+		Secure:   isSecureCookie(),
 		SameSite: "Lax",
 	})
 
@@ -237,7 +245,7 @@ func GuestLogin(c *fiber.Ctx) error {
 		Value:    token,
 		Expires:  time.Now().Add(24 * 7 * time.Hour),
 		HTTPOnly: true,
-		Secure:   false,
+		Secure:   isSecureCookie(),
 		SameSite: "Lax",
 	})
 	
@@ -255,7 +263,7 @@ func Logout(c *fiber.Ctx) error {
 		Value:    "",
 		Expires:  time.Now().Add(-time.Hour),
 		HTTPOnly: true,
-		Secure:   false,
+		Secure:   isSecureCookie(),
 		SameSite: "Lax",
 	})
 	

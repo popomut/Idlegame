@@ -80,6 +80,7 @@ export const equipmentAPI = {
   getSlots:   () => api.get('/equipment/slots'),
   equip:      (userEquipmentId, slot) => api.post('/equipment/equip', { user_equipment_id: userEquipmentId, slot }),
   unequip:    (slot) => api.post('/equipment/unequip', { slot }),
+  sell:       (ids) => api.post('/equipment/sell', { user_equipment_ids: ids }),
   give:       (equipmentKey) => api.post('/equipment/give', { equipment_key: equipmentKey }),
 };
 

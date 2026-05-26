@@ -29,6 +29,28 @@
   import SettingsView from './views/SettingsView.svelte';
   import AdminView from './views/AdminView.svelte';
 
+  let _touchStartX = 0;
+  let _touchStartY = 0;
+
+  function handleTouchStart(e) {
+    _touchStartX = e.touches[0].clientX;
+    _touchStartY = e.touches[0].clientY;
+  }
+
+  function handleTouchEnd(e) {
+    const dx = e.changedTouches[0].clientX - _touchStartX;
+    const dy = e.changedTouches[0].clientY - _touchStartY;
+    // Only trigger on clearly horizontal swipes (more X than Y, at least 50px)
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx > 0 && _touchStartX < 50) {
+      // Right swipe from left edge → open
+      sidebarOpen.set(true);
+    } else if (dx < 0) {
+      // Left swipe anywhere → close
+      sidebarOpen.set(false);
+    }
+  }
+
   onMount(async function () {
     // Subscribe to theme changes and apply to DOM
     const unsubscribe = theme.subscribe(value => {
@@ -68,6 +90,8 @@
     }
   });
 </script>
+
+<svelte:window on:touchstart={handleTouchStart} on:touchend={handleTouchEnd} />
 
 {#if $isAuthenticated}
   <TopBar />

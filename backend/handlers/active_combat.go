@@ -164,16 +164,21 @@ func GetCombatStatus(c *fiber.Ctx) error {
 	logsJSON, _ := json.Marshal(logs)
 	session.CombatLogsJSON = string(logsJSON)
 
-	// Award any newly earned XP/money to user
+	// Atomically claim newly earned XP/money — prevents double-award on concurrent ticks
 	newXP := session.TotalXPGained - session.XPAwarded
 	newMoney := session.TotalMoneyGained - session.MoneyAwarded
 	if newXP > 0 || newMoney > 0 {
-		// Use AwardXP to handle level-up logic, then separately update money
-		if newXP > 0 {
-			AwardXP(userID, newXP)
-		}
-		if newMoney > 0 {
-			database.DB.Model(&user).Update("money", gorm.Expr("money + ?", newMoney))
+		res := database.DB.Exec(
+			"UPDATE active_combats SET xp_awarded = ?, money_awarded = ? WHERE id = ? AND xp_awarded = ?",
+			session.TotalXPGained, session.TotalMoneyGained, session.ID, session.XPAwarded,
+		)
+		if res.RowsAffected > 0 {
+			if newXP > 0 {
+				AwardXP(userID, newXP)
+			}
+			if newMoney > 0 {
+				database.DB.Model(&user).Update("money", gorm.Expr("money + ?", newMoney))
+			}
 		}
 		session.XPAwarded = session.TotalXPGained
 		session.MoneyAwarded = session.TotalMoneyGained
@@ -249,16 +254,21 @@ func FleeCombat(c *fiber.Ctx) error {
 	session.CombatLogsJSON = string(logsJSON)
 	session.Status = "fled"
 
-	// Award all pending rewards
+	// Atomically claim pending rewards — prevents double-award if flee called twice
 	newXP := session.TotalXPGained - session.XPAwarded
 	newMoney := session.TotalMoneyGained - session.MoneyAwarded
 	if newXP > 0 || newMoney > 0 {
-		// Use AwardXP to handle level-up logic, then separately update money
-		if newXP > 0 {
-			AwardXP(userID, newXP)
-		}
-		if newMoney > 0 {
-			database.DB.Model(&user).Update("money", gorm.Expr("money + ?", newMoney))
+		res := database.DB.Exec(
+			"UPDATE active_combats SET xp_awarded = ?, money_awarded = ? WHERE id = ? AND xp_awarded = ?",
+			session.TotalXPGained, session.TotalMoneyGained, session.ID, session.XPAwarded,
+		)
+		if res.RowsAffected > 0 {
+			if newXP > 0 {
+				AwardXP(userID, newXP)
+			}
+			if newMoney > 0 {
+				database.DB.Model(&user).Update("money", gorm.Expr("money + ?", newMoney))
+			}
 		}
 		session.XPAwarded = session.TotalXPGained
 		session.MoneyAwarded = session.TotalMoneyGained

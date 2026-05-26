@@ -11,6 +11,17 @@
   let loading = true;
   let errorMsg = '';
 
+  // ── Sell mode state ────────────────────────────────────────────────────
+  let sellMode = false;
+  let sellSelected = new Set(); // Set of user_equipment_id
+  let sellConfirming = false;
+  let sellSuccessMsg = '';
+
+  $: sellTotal = [...sellSelected].reduce((sum, id) => {
+    const item = bag.find(b => b.user_equipment_id === id);
+    return sum + (item?.equipment?.base_price || 0);
+  }, 0);
+
   // ── Layout: body positions for 8 slots ────────────────────────────────
   // Grid: 3 columns × 4 rows. Empty cells use slot id 'empty'.
   const bodyLayout = [
@@ -115,6 +126,46 @@
     return slots.some(s => s.user_equipment_id === item.user_equipment_id);
   }
 
+  // ── Sell mode ──────────────────────────────────────────────────────────
+  function enterSellMode() {
+    sellMode = true;
+    sellSelected = new Set();
+    sellSuccessMsg = '';
+    selectedItem = null;
+  }
+
+  function exitSellMode() {
+    sellMode = false;
+    sellSelected = new Set();
+    sellSuccessMsg = '';
+  }
+
+  function toggleSellItem(item) {
+    if (isEquipped(item)) return; // can't sell equipped
+    if (!item.equipment.base_price) return; // no value
+    const id = item.user_equipment_id;
+    const next = new Set(sellSelected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    sellSelected = next;
+  }
+
+  async function confirmSell() {
+    if (sellSelected.size === 0) return;
+    sellConfirming = true;
+    errorMsg = '';
+    try {
+      const res = await equipmentAPI.sell([...sellSelected]);
+      sellSuccessMsg = `Sold ${res.data.items_sold} item(s) for 💰 ${res.data.gold_earned} gold`;
+      await loadAll();
+      sellSelected = new Set();
+    } catch (err) {
+      errorMsg = err?.response?.data?.error || 'Failed to sell items.';
+    } finally {
+      sellConfirming = false;
+    }
+  }
+
   function modLabel(mod) {
     const labels = {
       str: 'STR', int: 'INT', dex: 'DEX',
@@ -192,33 +243,83 @@
       <div class="card-header">
         <span class="card-icon">&#x1F392;</span>
         <h2 class="card-title">Armory Bag</h2>
-        <div class="sort-btns">
-          <button class="sort-btn" class:sort-active={bagSort === 'latest'} on:click={() => bagSort = 'latest'}>Latest</button>
-          <button class="sort-btn" class:sort-active={bagSort === 'alpha'}  on:click={() => bagSort = 'alpha'}>A–Z</button>
-        </div>
+        {#if !sellMode}
+          <div class="sort-btns">
+            <button class="sort-btn" class:sort-active={bagSort === 'latest'} on:click={() => bagSort = 'latest'}>Latest</button>
+            <button class="sort-btn" class:sort-active={bagSort === 'alpha'}  on:click={() => bagSort = 'alpha'}>A–Z</button>
+          </div>
+          <button class="sell-toggle-btn" on:click={enterSellMode} title="Sell items from bag">💰 Sell</button>
+        {:else}
+          <span class="sell-preview">
+            {#if sellSelected.size > 0}
+              💰 {sellTotal} gold ({sellSelected.size} item{sellSelected.size > 1 ? 's' : ''})
+            {:else}
+              Select items to sell
+            {/if}
+          </span>
+          <div class="sell-actions">
+            <button class="sell-confirm-btn" disabled={sellSelected.size === 0 || sellConfirming} on:click={confirmSell}>
+              {sellConfirming ? 'Selling…' : 'Confirm Sell'}
+            </button>
+            <button class="sell-cancel-btn" on:click={exitSellMode}>Cancel</button>
+          </div>
+        {/if}
       </div>
+
+      {#if sellSuccessMsg}
+        <div class="sell-success">{sellSuccessMsg}</div>
+      {/if}
 
       {#if sortedBag.length === 0}
         <p class="empty-bag">No equipment obtained yet. Earn gear through combat and scavenging.</p>
       {:else}
         <div class="bag-list">
           {#each sortedBag as item}
-            <button class="bag-item" class:bag-item-equipped={isEquipped(item)} on:click={() => openPopup(item)}>
-              <span class="bag-icon">{item.equipment.icon}</span>
-              <div class="bag-info">
-                <span class="bag-name" style="color:{rarityColor[item.equipment.rarity] || 'inherit'}">{item.equipment.name}</span>
-                <span class="bag-slot">{item.equipment.slot.toUpperCase()} · {item.equipment.rarity}</span>
+            {#if sellMode}
+              {@const equipped = isEquipped(item)}
+              {@const noValue = !item.equipment.base_price}
+              {@const disabled = equipped || noValue}
+              {@const checked = sellSelected.has(item.user_equipment_id)}
+              <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+              <div
+                class="bag-item sell-item"
+                class:bag-item-equipped={equipped}
+                class:sell-item-disabled={disabled}
+                class:sell-item-checked={checked}
+                on:click={() => !disabled && toggleSellItem(item)}
+              >
+                <span class="sell-checkbox">{checked ? '☑' : '☐'}</span>
+                <span class="bag-icon">{item.equipment.icon}</span>
+                <div class="bag-info">
+                  <span class="bag-name" style="color:{rarityColor[item.equipment.rarity] || 'inherit'}">{item.equipment.name}</span>
+                  <span class="bag-slot">{item.equipment.slot.toUpperCase()} · {item.equipment.rarity}</span>
+                </div>
+                {#if equipped}
+                  <span class="bag-equipped">Equipped</span>
+                {:else if noValue}
+                  <span class="sell-no-value">No value</span>
+                {:else}
+                  <span class="sell-price">💰 {item.equipment.base_price}</span>
+                {/if}
               </div>
-              {#if item.equipment.base_attack > 0}
-                <span class="bag-stat atk">ATK {item.equipment.base_attack}</span>
-              {:else if item.equipment.base_defence > 0}
-                <span class="bag-stat def">DEF {item.equipment.base_defence}</span>
-              {/if}
-              {#if isEquipped(item)}
-                <span class="bag-equipped">Equipped</span>
-              {/if}
-              <span class="bag-chevron">›</span>
-            </button>
+            {:else}
+              <button class="bag-item" class:bag-item-equipped={isEquipped(item)} on:click={() => openPopup(item)}>
+                <span class="bag-icon">{item.equipment.icon}</span>
+                <div class="bag-info">
+                  <span class="bag-name" style="color:{rarityColor[item.equipment.rarity] || 'inherit'}">{item.equipment.name}</span>
+                  <span class="bag-slot">{item.equipment.slot.toUpperCase()} · {item.equipment.rarity}</span>
+                </div>
+                {#if item.equipment.base_attack > 0}
+                  <span class="bag-stat atk">ATK {item.equipment.base_attack}</span>
+                {:else if item.equipment.base_defence > 0}
+                  <span class="bag-stat def">DEF {item.equipment.base_defence}</span>
+                {/if}
+                {#if isEquipped(item)}
+                  <span class="bag-equipped">Equipped</span>
+                {/if}
+                <span class="bag-chevron">›</span>
+              </button>
+            {/if}
           {/each}
         </div>
       {/if}
@@ -562,7 +663,128 @@
     background-color: rgba(0, 200, 150, 0.12);
   }
 
-  /* ── Popup ──────────────────────────────────────────────────────────── */
+  /* ── Sell mode ──────────────────────────────────────────────────────── */
+  .sell-toggle-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--color-gold-dim);
+    background: rgba(180, 140, 0, 0.1);
+    color: var(--color-gold);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-weight: 600;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+    margin-left: 6px;
+    flex-shrink: 0;
+  }
+
+  .sell-toggle-btn:hover {
+    background: rgba(180, 140, 0, 0.2);
+    border-color: var(--color-gold);
+  }
+
+  .sell-preview {
+    font-size: 13px;
+    color: var(--color-gold);
+    font-weight: 600;
+    flex: 1;
+    text-align: center;
+  }
+
+  .sell-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .sell-confirm-btn {
+    font-size: 12px;
+    padding: 5px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--color-gold-dim);
+    background: rgba(180, 140, 0, 0.15);
+    color: var(--color-gold);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-weight: 700;
+    transition: background var(--transition-fast);
+  }
+
+  .sell-confirm-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .sell-confirm-btn:not(:disabled):hover {
+    background: rgba(180, 140, 0, 0.3);
+  }
+
+  .sell-cancel-btn {
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-weight: 600;
+    transition: background var(--transition-fast);
+  }
+
+  .sell-cancel-btn:hover {
+    background: var(--color-bg-hover);
+    color: var(--color-text);
+  }
+
+  .sell-success {
+    font-size: 13px;
+    color: #00d4a0;
+    font-weight: 600;
+    padding: 8px 12px;
+    background: rgba(0, 200, 150, 0.1);
+    border: 1px solid rgba(0, 200, 150, 0.3);
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+
+  .sell-item {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .sell-item-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .sell-item-checked {
+    border-color: var(--color-gold-dim) !important;
+    background-color: rgba(180, 140, 0, 0.1) !important;
+  }
+
+  .sell-checkbox {
+    font-size: 18px;
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
+    color: var(--color-gold);
+  }
+
+  .sell-price {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-gold);
+    flex-shrink: 0;
+  }
+
+  .sell-no-value {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    font-style: italic;
+    flex-shrink: 0;
+  }
   .popup-backdrop {
     position: fixed;
     inset: 0;
