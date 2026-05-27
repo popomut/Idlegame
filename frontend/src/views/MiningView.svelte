@@ -20,6 +20,8 @@
   let syncInterval = null;
   // Tracks local ore/herb gains between server syncs
   let pendingOres = {};
+  // Tracks last popup count to avoid burst when returning from background tab
+  let lastPopupCount = 0;
 
   onMount(async function () {
     // Load extraction types from master table
@@ -84,6 +86,14 @@
           if (estimated > 0) {
             pendingOres = { [$activeMining.oreKey]: estimated };
           }
+        } else {
+          // Re-estimate for ore as well (was missing before)
+          const elapsed = Date.now() - new Date($activeMining.startedAt).getTime();
+          const interval = $activeMining.extractionTimeMS || 3000;
+          const estimated = Math.floor(elapsed / interval);
+          if (estimated > 0) {
+            pendingOres = { [$activeMining.oreKey]: estimated };
+          }
         }
       }
     }
@@ -129,15 +139,24 @@
 
     // Reset pending on new session so display starts clean
     pendingOres = {};
+    lastPopupCount = 0;
 
+    // Use elapsed time instead of interval counter to tolerate background tab throttling
     miningInterval = setInterval(function () {
+      const elapsed = Date.now() - new Date($activeMining.startedAt).getTime();
+      const newCount = Math.floor(elapsed / interval);
+      
       // Check cap against base (server) + pending — use correct store
       const base = isHerb ? ($herbs[resourceKey] || 0) : ($ores[resourceKey] || 0);
-      const pending = (pendingOres[resourceKey] || 0);
-      if (maxQty > 0 && base + pending >= maxQty) return;
+      if (maxQty > 0 && base + newCount >= maxQty) return;
 
-      pendingOres = { ...pendingOres, [resourceKey]: pending + 1 };
-      showMiningPopup(1);
+      // Only show popups for new gains since last check
+      const newGains = newCount - lastPopupCount;
+      if (newGains > 0) {
+        pendingOres = { ...pendingOres, [resourceKey]: newCount };
+        showMiningPopup(newGains);
+        lastPopupCount = newCount;
+      }
     }, interval);
 
     let syncIntervalMs;
@@ -145,6 +164,8 @@
     unsub();
 
     // Sync with server every 15s
+    // Note: Server-side pending is for offline detection, not for live display
+    // Frontend tracks local pending which is accurate during mining
     syncInterval = setInterval(async function () {
       if (isHerb) {
         await syncHerbInventory();
@@ -171,10 +192,12 @@
       miningInterval = null;
       syncInterval = null;
       pendingOres = {};
+      lastPopupCount = 0;
       await stopMining();
       addLogEntry(`Stopped extracting ${oreName}.`);
     } else if (ore) {
       pendingOres = {};
+      lastPopupCount = 0;
       const extractionTime = ore.MiningTimeMS ?? ore.GatherTimeMS ?? 3000;
       const resourceKey = ore.OreKey ?? ore.HerbKey;
       const resourceName = ore.OreName ?? ore.HerbName;

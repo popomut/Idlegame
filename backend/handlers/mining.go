@@ -204,11 +204,14 @@ func GetMiningStatus(c *fiber.Ctx) error {
 		currentHerbs[item.HerbType.HerbKey] = item.Quantity
 	}
 
-	// Add pending (unsaved) resources for the active session
+	// Add pending (unsaved) resources for OFFLINE GAINS ONLY
+	// currentOres/currentHerbs should return ACTUAL saved values only
+	// Frontend tracks live pending locally via client-side counter
 	if isActive {
 		now := time.Now().UTC()
 		elapsed := now.Sub(session.StartedAt)
 
+		// Calculate pending for OFFLINE GAINS display, but DON'T add to currentOres
 		if isHerbSession {
 			pendingHerbs := 0
 			if herb.GatherTimeMS > 0 {
@@ -224,7 +227,7 @@ func GetMiningStatus(c *fiber.Ctx) error {
 					pendingHerbs = 0
 				}
 			}
-			currentHerbs[herb.HerbKey] += pendingHerbs
+			// NOTE: Don't add to currentHerbs — frontend tracks locally
 		} else {
 			pendingOres := 0
 			if ore.MiningTimeMS > 0 {
@@ -240,7 +243,7 @@ func GetMiningStatus(c *fiber.Ctx) error {
 					pendingOres = 0
 				}
 			}
-			currentOres[ore.OreKey] += pendingOres
+			// NOTE: Don't add to currentOres — frontend tracks locally
 		}
 	}
 
