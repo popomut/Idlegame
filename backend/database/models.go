@@ -154,6 +154,7 @@ type OreType struct {
 	OreName          string `gorm:"not null"`
 	Icon             string
 	Color            string
+	SVG              string `gorm:"type:text"` // SVG code for ore display
 	Difficulty       string
 	MiningTimeMS     int    `gorm:"default:3000"` // milliseconds per ore
 	XPPerOre         int    `gorm:"default:10"`

@@ -13,6 +13,7 @@ type OreResponse struct {
 	OreName         string `json:"ore_name"`
 	Icon            string `json:"icon"`
 	Color           string `json:"color"`
+	SVG             string `json:"svg"`
 	Difficulty      string `json:"difficulty"`
 	MiningTimeMS    int    `json:"mining_time_ms"`
 	XPPerOre        int    `json:"xp_per_ore"`
@@ -29,6 +30,7 @@ func toOreResponse(ore database.OreType) OreResponse {
 		OreName:         ore.OreName,
 		Icon:            ore.Icon,
 		Color:           ore.Color,
+		SVG:             ore.SVG,
 		Difficulty:      ore.Difficulty,
 		MiningTimeMS:    ore.MiningTimeMS,
 		XPPerOre:        ore.XPPerOre,
@@ -62,6 +64,7 @@ func AdminCreateOre(c *fiber.Ctx) error {
 		OreName         string `json:"ore_name"`
 		Icon            string `json:"icon"`
 		Color           string `json:"color"`
+		SVG             string `json:"svg"`
 		Difficulty      string `json:"difficulty"`
 		MiningTimeMS    int    `json:"mining_time_ms"`
 		XPPerOre        int    `json:"xp_per_ore"`
@@ -69,6 +72,7 @@ func AdminCreateOre(c *fiber.Ctx) error {
 		PickaxeRequired string `json:"pickaxe_required"`
 		MaxQuantity     int    `json:"max_quantity"`
 		SortOrder       int    `json:"sort_order"`
+		BasePrice       int    `json:"base_price"`
 	}
 
 	var req CreateOreRequest
@@ -86,6 +90,7 @@ func AdminCreateOre(c *fiber.Ctx) error {
 		OreName:         req.OreName,
 		Icon:            req.Icon,
 		Color:           req.Color,
+		SVG:             req.SVG,
 		Difficulty:      req.Difficulty,
 		MiningTimeMS:    req.MiningTimeMS,
 		XPPerOre:        req.XPPerOre,
@@ -93,6 +98,7 @@ func AdminCreateOre(c *fiber.Ctx) error {
 		PickaxeRequired: req.PickaxeRequired,
 		MaxQuantity:     req.MaxQuantity,
 		SortOrder:       req.SortOrder,
+		BasePrice:       req.BasePrice,
 	}
 
 	if err := database.DB.Create(&ore).Error; err != nil {
@@ -110,6 +116,7 @@ func AdminUpdateOre(c *fiber.Ctx) error {
 		OreName         string `json:"ore_name"`
 		Icon            string `json:"icon"`
 		Color           string `json:"color"`
+		SVG             string `json:"svg"`
 		Difficulty      string `json:"difficulty"`
 		MiningTimeMS    int    `json:"mining_time_ms"`
 		XPPerOre        int    `json:"xp_per_ore"`
@@ -117,6 +124,7 @@ func AdminUpdateOre(c *fiber.Ctx) error {
 		PickaxeRequired string `json:"pickaxe_required"`
 		MaxQuantity     int    `json:"max_quantity"`
 		SortOrder       int    `json:"sort_order"`
+		BasePrice       int    `json:"base_price"`
 	}
 
 	var req UpdateOreRequest
@@ -133,6 +141,7 @@ func AdminUpdateOre(c *fiber.Ctx) error {
 		OreName:         req.OreName,
 		Icon:            req.Icon,
 		Color:           req.Color,
+		SVG:             req.SVG,
 		Difficulty:      req.Difficulty,
 		MiningTimeMS:    req.MiningTimeMS,
 		XPPerOre:        req.XPPerOre,
@@ -140,6 +149,7 @@ func AdminUpdateOre(c *fiber.Ctx) error {
 		PickaxeRequired: req.PickaxeRequired,
 		MaxQuantity:     req.MaxQuantity,
 		SortOrder:       req.SortOrder,
+		BasePrice:       req.BasePrice,
 	}
 
 	if err := database.DB.Model(&ore).Updates(updates).Error; err != nil {

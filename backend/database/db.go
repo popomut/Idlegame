@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -9,6 +10,104 @@ import (
 )
 
 var DB *gorm.DB
+
+// generateOreSVG creates SVG for ore with copper ore structure but custom colors
+func generateOreSVG(baseColor string) string {
+	// baseColor = main ore color (e.g. "#b87333" for copper)
+	// Create lighter and darker variants
+	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%%" height="100%%">
+  <defs>
+    <filter id="drop-shadow" x="-10%%" y="-10%%" width="130%%" height="130%%">
+      <feDropShadow dx="0" dy="12" stdDeviation="8" flood-color="#0c0705" flood-opacity="0.4"/>
+    </filter>
+    <linearGradient id="ore-base" x1="0%%" y1="0%%" x2="0%%" y2="100%%">
+      <stop offset="0%%" stop-color="%s"/>
+      <stop offset="100%%" stop-color="%s"/>
+    </linearGradient>
+    <linearGradient id="ore-accent" x1="0%%" y1="0%%" x2="100%%" y2="100%%">
+      <stop offset="0%%" stop-color="%s"/>
+      <stop offset="100%%" stop-color="%s"/>
+    </linearGradient>
+  </defs>
+  <g filter="url(#drop-shadow)">
+    <path d="M 315 110 L 420 110 L 460 150 L 475 220 L 550 260 L 580 340 L 590 410 L 560 450 L 490 470 L 400 445 L 375 445 L 290 460 L 245 425 L 240 345 L 280 295 L 270 240 L 315 110 Z" fill="#26120c" stroke="#26120c" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M 320 115 L 415 115 L 455 155 L 470 225 L 410 295 L 340 265 L 320 200 Z" fill="url(#ore-base)"/>
+    <path d="M 320 115 L 415 115 L 390 190 L 320 200 Z" fill="%s" opacity="0.6"/>
+    <path d="M 450 230 L 545 265 L 575 345 L 550 425 L 460 395 L 420 300 Z" fill="url(#ore-base)"/>
+    <path d="M 450 230 L 545 265 L 510 330 L 420 300 Z" fill="%s" opacity="0.5"/>
+    <path d="M 275 245 L 345 270 L 415 300 L 380 390 L 300 370 L 275 310 Z" fill="url(#ore-base)"/>
+    <path d="M 275 245 L 345 270 L 330 330 L 275 310 Z" fill="%s" opacity="0.7"/>
+    <path d="M 245 350 L 325 350 L 395 385 L 375 445 L 290 455 L 245 420 Z" fill="url(#ore-base)"/>
+    <path d="M 245 350 L 325 350 L 340 410 L 245 420 Z" fill="%s" opacity="0.4"/>
+    <path d="M 410 375 L 485 355 L 565 390 L 555 445 L 485 465 L 410 425 Z" fill="url(#ore-base)"/>
+    <path d="M 410 375 L 485 355 L 500 420 L 410 425 Z" fill="%s" opacity="0.6"/>
+    <g fill="#26120c" opacity="0.7">
+      <circle cx="350" cy="140" r="3"/><circle cx="365" cy="155" r="2"/>
+      <circle cx="430" cy="180" r="4"/><circle cx="445" cy="210" r="2.5"/>
+      <circle cx="530" cy="310" r="3.5"/><circle cx="550" cy="350" r="2"/>
+      <circle cx="490" cy="410" r="4"/><circle cx="530" cy="420" r="3"/>
+      <circle cx="330" cy="410" r="3"/><circle cx="280" cy="390" r="2.5"/>
+      <circle cx="370" cy="330" r="3.5"/>
+    </g>
+    <g fill="%s" opacity="0.4">
+      <circle cx="340" cy="130" r="2"/><circle cx="415" cy="245" r="3"/>
+      <circle cx="475" cy="265" r="2.5"/><circle cx="435" cy="395" r="2"/>
+    </g>
+    <path d="M 365 240 Q 372 240 372 233 Q 372 240 379 240 Q 372 240 372 247 Q 372 240 365 240 Z" fill="url(#ore-accent)"/>
+    <g stroke="#3b190e" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8">
+      <path d="M 210 330 L 235 355"/><path d="M 195 345 Q 215 325 230 320"/>
+      <path d="M 210 355 Q 220 340 240 335"/><path d="M 550 190 L 525 215"/>
+      <path d="M 535 180 Q 555 195 560 215"/><path d="M 520 195 Q 540 205 545 225"/>
+    </g>
+  </g>
+</svg>`,
+		lightenColor(baseColor, 0.3),  // light variant
+		darkenColor(baseColor, 0.4),   // dark variant
+		lightenColor(baseColor, 0.5),  // accent light
+		darkenColor(baseColor, 0.2),   // accent dark
+		lightenColor(baseColor, 0.25), // highlights 1
+		lightenColor(baseColor, 0.2),  // highlights 2
+		lightenColor(baseColor, 0.15), // highlights 3
+		lightenColor(baseColor, 0.1),  // highlights 4
+		lightenColor(baseColor, 0.1),  // highlights 5
+		lightenColor(baseColor, 0.4),  // sparkle
+	)
+}
+
+// lightenColor makes a hex color lighter by factor (0-1)
+func lightenColor(hexColor string, factor float64) string {
+	if len(hexColor) != 7 {
+		return hexColor
+	}
+	var r, g, b int
+	fmt.Sscanf(hexColor, "#%02x%02x%02x", &r, &g, &b)
+	r = int(float64(r) + (255-float64(r))*factor)
+	g = int(float64(g) + (255-float64(g))*factor)
+	b = int(float64(b) + (255-float64(b))*factor)
+	if r > 255 {
+		r = 255
+	}
+	if g > 255 {
+		g = 255
+	}
+	if b > 255 {
+		b = 255
+	}
+	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
+}
+
+// darkenColor makes a hex color darker by factor (0-1)
+func darkenColor(hexColor string, factor float64) string {
+	if len(hexColor) != 7 {
+		return hexColor
+	}
+	var r, g, b int
+	fmt.Sscanf(hexColor, "#%02x%02x%02x", &r, &g, &b)
+	r = int(float64(r) * (1 - factor))
+	g = int(float64(g) * (1 - factor))
+	b = int(float64(b) * (1 - factor))
+	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
+}
 
 func Init() error {
 	// Open SQLite database using pure Go driver (no CGO needed)
@@ -127,12 +226,13 @@ func seedOreTypes() error {
 			OreName:         "Copper Ore",
 			Icon:            "🪨",
 			Color:           "#b87333",
+			SVG:             generateOreSVG("#b87333"),
 			Difficulty:      "Common",
 			MiningTimeMS:    3000,
 			XPPerOre:        10,
 			LevelRequired:   1,
 			PickaxeRequired: "none",
-			MaxQuantity:     500,
+			MaxQuantity:     99999,
 			SortOrder:       1,
 			BasePrice:       2,
 		},
@@ -141,12 +241,13 @@ func seedOreTypes() error {
 			OreName:         "Silver Ore",
 			Icon:            "⚪",
 			Color:           "#c0c0c0",
+			SVG:             generateOreSVG("#c0c0c0"),
 			Difficulty:      "Uncommon",
 			MiningTimeMS:    4000,
 			XPPerOre:        15,
 			LevelRequired:   3,
 			PickaxeRequired: "none",
-			MaxQuantity:     400,
+			MaxQuantity:     99999,
 			SortOrder:       2,
 			BasePrice:       4,
 		},
@@ -155,12 +256,13 @@ func seedOreTypes() error {
 			OreName:         "Iron Ore",
 			Icon:            "⚫",
 			Color:           "#5a5a5a",
+			SVG:             generateOreSVG("#5a5a5a"),
 			Difficulty:      "Uncommon",
 			MiningTimeMS:    6000,
 			XPPerOre:        20,
 			LevelRequired:   5,
 			PickaxeRequired: "none",
-			MaxQuantity:     300,
+			MaxQuantity:     99999,
 			SortOrder:       3,
 			BasePrice:       5,
 		},
@@ -169,12 +271,13 @@ func seedOreTypes() error {
 			OreName:         "Bronze Ore",
 			Icon:            "🟤",
 			Color:           "#cd7f32",
+			SVG:             generateOreSVG("#cd7f32"),
 			Difficulty:      "Uncommon",
 			MiningTimeMS:    5000,
 			XPPerOre:        18,
 			LevelRequired:   7,
 			PickaxeRequired: "none",
-			MaxQuantity:     350,
+			MaxQuantity:     99999,
 			SortOrder:       4,
 			BasePrice:       5,
 		},
@@ -183,12 +286,13 @@ func seedOreTypes() error {
 			OreName:         "Gold Ore",
 			Icon:            "✨",
 			Color:           "#ffd700",
+			SVG:             generateOreSVG("#ffd700"),
 			Difficulty:      "Rare",
 			MiningTimeMS:    12000,
 			XPPerOre:        40,
 			LevelRequired:   15,
 			PickaxeRequired: "iron_pickaxe",
-			MaxQuantity:     100,
+			MaxQuantity:     99999,
 			SortOrder:       5,
 			BasePrice:       15,
 		},
@@ -197,12 +301,13 @@ func seedOreTypes() error {
 			OreName:         "Platinum Ore",
 			Icon:            "⭐",
 			Color:           "#e5e4e2",
+			SVG:             generateOreSVG("#e5e4e2"),
 			Difficulty:      "Rare",
 			MiningTimeMS:    15000,
 			XPPerOre:        50,
 			LevelRequired:   20,
 			PickaxeRequired: "iron_pickaxe",
-			MaxQuantity:     80,
+			MaxQuantity:     99999,
 			SortOrder:       6,
 			BasePrice:       20,
 		},
@@ -211,12 +316,13 @@ func seedOreTypes() error {
 			OreName:         "Emerald Ore",
 			Icon:            "💚",
 			Color:           "#50c878",
+			SVG:             generateOreSVG("#50c878"),
 			Difficulty:      "Rare",
 			MiningTimeMS:    18000,
 			XPPerOre:        55,
 			LevelRequired:   25,
 			PickaxeRequired: "iron_pickaxe",
-			MaxQuantity:     70,
+			MaxQuantity:     99999,
 			SortOrder:       7,
 			BasePrice:       25,
 		},
@@ -225,12 +331,13 @@ func seedOreTypes() error {
 			OreName:         "Mithril Ore",
 			Icon:            "💎",
 			Color:           "#00bfff",
+			SVG:             generateOreSVG("#00bfff"),
 			Difficulty:      "Epic",
 			MiningTimeMS:    25000,
 			XPPerOre:        75,
 			LevelRequired:   30,
 			PickaxeRequired: "gold_pickaxe",
-			MaxQuantity:     50,
+			MaxQuantity:     99999,
 			SortOrder:       8,
 			BasePrice:       40,
 		},
@@ -239,12 +346,13 @@ func seedOreTypes() error {
 			OreName:         "Sapphire Ore",
 			Icon:            "💙",
 			Color:           "#0f52ba",
+			SVG:             generateOreSVG("#0f52ba"),
 			Difficulty:      "Epic",
 			MiningTimeMS:    30000,
 			XPPerOre:        85,
 			LevelRequired:   35,
 			PickaxeRequired: "gold_pickaxe",
-			MaxQuantity:     40,
+			MaxQuantity:     99999,
 			SortOrder:       9,
 			BasePrice:       50,
 		},
@@ -253,12 +361,13 @@ func seedOreTypes() error {
 			OreName:         "Ruby Ore",
 			Icon:            "❤️",
 			Color:           "#e0115f",
+			SVG:             generateOreSVG("#e0115f"),
 			Difficulty:      "Epic",
 			MiningTimeMS:    35000,
 			XPPerOre:        100,
 			LevelRequired:   40,
 			PickaxeRequired: "gold_pickaxe",
-			MaxQuantity:     35,
+			MaxQuantity:     99999,
 			SortOrder:       10,
 			BasePrice:       60,
 		},
@@ -267,12 +376,13 @@ func seedOreTypes() error {
 			OreName:         "Titanium Ore",
 			Icon:            "🔷",
 			Color:           "#878681",
+			SVG:             generateOreSVG("#878681"),
 			Difficulty:      "Epic",
 			MiningTimeMS:    45000,
 			XPPerOre:        120,
 			LevelRequired:   45,
 			PickaxeRequired: "mithril_pickaxe",
-			MaxQuantity:     30,
+			MaxQuantity:     99999,
 			SortOrder:       11,
 			BasePrice:       80,
 		},
@@ -281,12 +391,13 @@ func seedOreTypes() error {
 			OreName:         "Diamond Ore",
 			Icon:            "💠",
 			Color:           "#00ffff",
+			SVG:             generateOreSVG("#00ffff"),
 			Difficulty:      "Legendary",
 			MiningTimeMS:    60000,
 			XPPerOre:        150,
 			LevelRequired:   50,
 			PickaxeRequired: "mithril_pickaxe",
-			MaxQuantity:     25,
+			MaxQuantity:     99999,
 			SortOrder:       12,
 			BasePrice:       100,
 		},
@@ -295,12 +406,13 @@ func seedOreTypes() error {
 			OreName:         "Obsidian Ore",
 			Icon:            "🖤",
 			Color:           "#0b1107",
+			SVG:             generateOreSVG("#0b1107"),
 			Difficulty:      "Legendary",
 			MiningTimeMS:    70000,
 			XPPerOre:        160,
 			LevelRequired:   52,
 			PickaxeRequired: "mithril_pickaxe",
-			MaxQuantity:     20,
+			MaxQuantity:     99999,
 			SortOrder:       13,
 			BasePrice:       110,
 		},
@@ -309,12 +421,13 @@ func seedOreTypes() error {
 			OreName:         "Orichalcum Ore",
 			Icon:            "🟡",
 			Color:           "#b76e00",
+			SVG:             generateOreSVG("#b76e00"),
 			Difficulty:      "Legendary",
 			MiningTimeMS:    80000,
 			XPPerOre:        180,
 			LevelRequired:   55,
 			PickaxeRequired: "mithril_pickaxe",
-			MaxQuantity:     15,
+			MaxQuantity:     99999,
 			SortOrder:       14,
 			BasePrice:       140,
 		},
@@ -323,12 +436,13 @@ func seedOreTypes() error {
 			OreName:         "Celestial Ore",
 			Icon:            "✨🌙",
 			Color:           "#9932cc",
+			SVG:             generateOreSVG("#9932cc"),
 			Difficulty:      "Mythic",
 			MiningTimeMS:    100000,
 			XPPerOre:        200,
 			LevelRequired:   60,
 			PickaxeRequired: "mithril_pickaxe",
-			MaxQuantity:     10,
+			MaxQuantity:     99999,
 			SortOrder:       15,
 			BasePrice:       200,
 		},
@@ -341,9 +455,15 @@ func seedOreTypes() error {
 		if result.Error != nil {
 			// Not found — create
 			DB.Create(&ore)
-		} else if existing.BasePrice == 0 && ore.BasePrice > 0 {
+		} else {
 			// Backfill base_price for existing rows that never had it
-			DB.Model(&existing).Update("base_price", ore.BasePrice)
+			if existing.BasePrice == 0 && ore.BasePrice > 0 {
+				DB.Model(&existing).Update("base_price", ore.BasePrice)
+			}
+			// Backfill SVG for existing rows that never had it
+			if existing.SVG == "" && ore.SVG != "" {
+				DB.Model(&existing).Update("svg", ore.SVG)
+			}
 		}
 	}
 

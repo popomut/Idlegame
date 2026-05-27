@@ -279,6 +279,7 @@ func StartCrafting(c *fiber.Ctx) error {
 }
 
 // CalculateOfflineCraftingGains determines what the player crafted while offline
+// Considers ingredient availability, not just elapsed time
 func CalculateOfflineCraftingGains(userID uint, session database.BlacksmithSession) OfflineCraftingGainsInfo {
 	gains := OfflineCraftingGainsInfo{WasOffline: false}
 
@@ -289,13 +290,71 @@ func CalculateOfflineCraftingGains(userID uint, session database.BlacksmithSessi
 	elapsed := now.Sub(session.StartedAt)
 	craftingTimePerItem := time.Duration(recipe.CraftingTimeMS) * time.Millisecond
 
-	if elapsed > craftingTimePerItem {
-		gains.WasOffline = true
-		gains.OfflineTime = elapsed.Milliseconds()
-		gains.IngotsGained = int(elapsed.Milliseconds()) / recipe.CraftingTimeMS
-		gains.LastActiveTime = session.StartedAt
+	if elapsed <= craftingTimePerItem {
+		return gains
 	}
 
+	gains.WasOffline = true
+	gains.OfflineTime = elapsed.Milliseconds()
+	gains.LastActiveTime = session.StartedAt
+
+	// Calculate max possible ingots based on time
+	maxIngotsFromTime := int(elapsed.Milliseconds()) / recipe.CraftingTimeMS
+
+	// Get recipe ingredients
+	var ingredients []database.CraftRecipeIngredient
+	database.DB.Where("craftable_item_id = ?", recipe.ID).Find(&ingredients)
+
+	// Simulate production to count how many can actually be produced
+	ingotsProduced := 0
+	for i := 0; i < maxIngotsFromTime; i++ {
+		// Check if we have all required ingredients for this ingot
+		canProduce := true
+		for _, ing := range ingredients {
+			if ing.IngredientType == "ore" {
+				var oreType database.OreType
+				database.DB.Where("ore_key = ?", ing.IngredientKey).First(&oreType)
+				var item database.OreInventoryItem
+				database.DB.Where("user_id = ? AND ore_type_id = ?", userID, oreType.ID).First(&item)
+				if item.Quantity < ing.QuantityRequired {
+					canProduce = false
+					break
+				}
+			} else if ing.IngredientType == "ingot" {
+				var item database.UserIngotInventory
+				database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
+				if item.Quantity < ing.QuantityRequired {
+					canProduce = false
+					break
+				}
+			}
+		}
+
+		// If we can't produce, stop here
+		if !canProduce {
+			break
+		}
+
+		// Deduct ingredients from current inventory (in our simulation)
+		// This allows us to see how many sequential ingots can be made
+		for _, ing := range ingredients {
+			if ing.IngredientType == "ore" {
+				var oreType database.OreType
+				database.DB.Where("ore_key = ?", ing.IngredientKey).First(&oreType)
+				var item database.OreInventoryItem
+				database.DB.Where("user_id = ? AND ore_type_id = ?", userID, oreType.ID).First(&item)
+				item.Quantity -= ing.QuantityRequired
+			} else if ing.IngredientType == "ingot" {
+				var item database.UserIngotInventory
+				database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
+				item.Quantity -= ing.QuantityRequired
+			}
+		}
+
+		ingotsProduced++
+	}
+
+	gains.IngotsGained = ingotsProduced
 	return gains
 }
 

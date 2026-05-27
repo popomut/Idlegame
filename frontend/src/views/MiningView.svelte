@@ -147,7 +147,13 @@
           {:else}
             {#each collectedOres as ore}
               <div class="ore-count">
-                <span class="ore-icon">{ore.Icon}</span>
+                <div class="ore-icon">
+                  {#if ore.SVG}
+                    <div class="ore-svg-small">{@html ore.SVG}</div>
+                  {:else}
+                    <span>{ore.Icon}</span>
+                  {/if}
+                </div>
                 <span class="ore-label">{ore.OreName}</span>
                 <span class="ore-qty">{($ores[ore.OreKey] ?? 0) + (pendingOres[ore.OreKey] ?? 0)}</span>
                 {#if ore.MaxQuantity > 0}
@@ -189,7 +195,15 @@
             disabled={isLocked}
             on:click={() => handleOreClick(ore)}
           >
-            <div class="ore-btn-icon">{isLocked ? '🔒' : ore.Icon}</div>
+            <div class="ore-btn-icon">
+              {#if isLocked}
+                🔒
+              {:else if ore.SVG}
+                <div class="ore-svg-large">{@html ore.SVG}</div>
+              {:else}
+                {ore.Icon}
+              {/if}
+            </div>
             <div class="ore-btn-info">
               <div class="ore-btn-name">{ore.OreName}</div>
               <div class="ore-btn-meta">
@@ -334,7 +348,20 @@
     border-radius: 8px;
   }
 
-  .ore-icon { font-size: 18px; width: 24px; text-align: center; }
+  .ore-icon { font-size: 18px; width: 24px; height: 24px; text-align: center; display: flex; align-items: center; justify-content: center; }
+
+  .ore-svg-small {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ore-svg-small :global(svg) {
+    width: 100%;
+    height: 100%;
+  }
 
   .ore-label { font-size: 13px; color: var(--color-text-muted); flex: 1; }
 
@@ -379,7 +406,20 @@
     border-color: var(--color-border-subtle);
   }
 
-  .ore-btn-icon { font-size: 28px; width: 32px; flex-shrink: 0; }
+  .ore-btn-icon { font-size: 28px; width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+
+  .ore-svg-large {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ore-svg-large :global(svg) {
+    width: 100%;
+    height: 100%;
+  }
 
   .ore-btn-info { flex: 1; min-width: 0; }
 

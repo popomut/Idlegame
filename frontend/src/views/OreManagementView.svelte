@@ -13,6 +13,7 @@
     ore_name: '',
     icon: '',
     color: '',
+    svg: '',
     difficulty: '',
     mining_time_ms: 3000,
     xp_per_ore: 10,
@@ -20,6 +21,7 @@
     pickaxe_required: 'none',
     max_quantity: 0,
     sort_order: 0,
+    base_price: 0,
   };
 
   const difficultyOptions = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
@@ -50,6 +52,7 @@
         ore_name: ore.ore_name,
         icon: ore.icon,
         color: ore.color,
+        svg: ore.svg,
         difficulty: ore.difficulty,
         mining_time_ms: ore.mining_time_ms,
         xp_per_ore: ore.xp_per_ore,
@@ -57,6 +60,7 @@
         pickaxe_required: ore.pickaxe_required,
         max_quantity: ore.max_quantity,
         sort_order: ore.sort_order,
+        base_price: ore.base_price || 0,
       };
     } else {
       editingId = null;
@@ -65,6 +69,7 @@
         ore_name: '',
         icon: '',
         color: '',
+        svg: '',
         difficulty: 'Common',
         mining_time_ms: 3000,
         xp_per_ore: 10,
@@ -72,6 +77,7 @@
         pickaxe_required: 'none',
         max_quantity: 0,
         sort_order: 0,
+        base_price: 0,
       };
     }
     showModal = true;
@@ -132,6 +138,7 @@
         <thead>
           <tr>
             <th>Icon</th>
+            <th>SVG</th>
             <th>Key</th>
             <th>Name</th>
             <th>Difficulty</th>
@@ -146,6 +153,15 @@
           {#each ores as ore (ore.id)}
             <tr>
               <td class="icon-cell">{ore.icon}</td>
+              <td class="svg-cell">
+                {#if ore.svg}
+                  <div class="svg-preview">
+                    {@html ore.svg}
+                  </div>
+                {:else}
+                  <span class="empty-svg">—</span>
+                {/if}
+              </td>
               <td><span class="code">{ore.ore_key}</span></td>
               <td>{ore.ore_name}</td>
               <td>{ore.difficulty}</td>
@@ -195,6 +211,24 @@
               <label for="ore_color">Color</label>
               <input id="ore_color" type="text" bind:value={formData.color} placeholder="e.g. #b87333" />
             </div>
+          </div>
+
+          <div class="form-group">
+            <label for="ore_svg">SVG Code</label>
+            <textarea
+              id="ore_svg"
+              bind:value={formData.svg}
+              placeholder='e.g. <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="40" fill="#b87333"/></svg>'
+              rows="6"
+            />
+            {#if formData.svg}
+              <div class="svg-preview-modal">
+                <label>Preview:</label>
+                <div class="svg-preview-box">
+                  {@html formData.svg}
+                </div>
+              </div>
+            {/if}
           </div>
 
           <div class="form-row">
@@ -519,4 +553,84 @@
       flex-direction: column;
     }
   }
+
+  .svg-cell {
+    max-width: 80px;
+  }
+
+  .svg-preview {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .svg-preview :global(svg) {
+    width: 100%;
+    height: 100%;
+  }
+
+  .empty-svg {
+    color: var(--color-text-muted);
+    font-size: 12px;
+  }
+
+  .form-group textarea {
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background-color: var(--color-bg-elevated);
+    color: var(--color-text);
+    font-family: monospace;
+    font-size: 12px;
+    resize: vertical;
+  }
+
+  .form-group textarea:focus {
+    outline: none;
+    border-color: var(--color-magic);
+    box-shadow: 0 0 0 2px rgba(80, 80, 200, 0.2);
+  }
+
+  .svg-preview-modal {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--color-bg-elevated);
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+  }
+
+  .svg-preview-modal label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-heading);
+    margin-bottom: 8px;
+  }
+
+  .svg-preview-box {
+    width: 100%;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    overflow: hidden;
+    padding: 8px;
+  }
+
+  .svg-preview-box :global(svg) {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
 </style>
