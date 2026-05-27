@@ -507,6 +507,10 @@ func seedOreTypes() error {
 			// Not found — create
 			DB.Create(&ore)
 		} else {
+			// Backfill extraction_type_id for old rows (fixes missing ores in dropdown)
+			if existing.ExtractionTypeID == 0 {
+				DB.Model(&existing).Update("extraction_type_id", oreType.ID)
+			}
 			// Backfill base_price for existing rows that never had it
 			if existing.BasePrice == 0 && ore.BasePrice > 0 {
 				DB.Model(&existing).Update("base_price", ore.BasePrice)

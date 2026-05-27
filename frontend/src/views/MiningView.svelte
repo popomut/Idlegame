@@ -151,7 +151,8 @@
       } else {
         await syncOreInventoryDuringMining();
       }
-      pendingOres = {};
+      // DON'T reset pendingOres here — server hasn't saved pending gains yet
+      // Keep accumulating locally, only reset on stopMining()
     }, syncIntervalMs);
   }
 
