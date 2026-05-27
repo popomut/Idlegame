@@ -147,6 +147,18 @@ type OreInventory struct {
 	UpdatedAt time.Time
 }
 
+// ExtractableType defines categories of extractable resources (Ore, Herb, Fish, etc.)
+// Master table for organizing extraction types — add rows to add new extraction types
+type ExtractableType struct {
+	ID        uint   `gorm:"primaryKey"`
+	TypeKey   string `gorm:"uniqueIndex;not null"` // e.g. "ore", "herb", "fish"
+	TypeName  string `gorm:"not null"`             // display name: "Ore", "Herb", "Fish"
+	Icon      string                               // emoji or icon for UI
+	SortOrder int    `gorm:"default:0"`            // display order in dropdown
+
+	CreatedAt time.Time
+}
+
 // OreType defines ore properties — add rows to this table to add new ore types with no code changes
 type OreType struct {
 	ID               uint   `gorm:"primaryKey"`
@@ -163,8 +175,40 @@ type OreType struct {
 	MaxQuantity      int    `gorm:"default:0"`      // 0 = unlimited
 	SortOrder        int    `gorm:"default:0"`      // display order in UI
 	BasePrice        int    `gorm:"default:0" json:"base_price"` // base sell price per unit
+	ExtractionTypeID uint   // foreign key to ExtractableType
 
 	CreatedAt time.Time
+}
+
+// HerbType defines herb properties — add rows to add new herb types
+type HerbType struct {
+	ID               uint   `gorm:"primaryKey"`
+	HerbKey          string `gorm:"uniqueIndex;not null"` // e.g. "lavender_herb"
+	HerbName         string `gorm:"not null"`
+	Icon             string
+	Color            string
+	SVG              string `gorm:"type:text"` // SVG code for herb display
+	Difficulty       string
+	GatherTimeMS     int    `gorm:"default:3000"` // milliseconds per herb
+	XPPerHerb        int    `gorm:"default:10"`
+	LevelRequired    int    `gorm:"default:1"`
+	MaxQuantity      int    `gorm:"default:0"`      // 0 = unlimited
+	SortOrder        int    `gorm:"default:0"`      // display order in UI
+	BasePrice        int    `gorm:"default:0" json:"base_price"` // base sell price per unit
+	ExtractionTypeID uint   // foreign key to ExtractableType
+
+	CreatedAt time.Time
+}
+
+// HerbInventoryItem is a pivot table: one row per (user, herb type) pair.
+type HerbInventoryItem struct {
+	ID        uint      `gorm:"primaryKey"`
+	UserID    uint      `gorm:"not null;uniqueIndex:idx_inv_user_herb"`
+	HerbTypeID uint     `gorm:"not null;uniqueIndex:idx_inv_user_herb"`
+	HerbType  HerbType  `gorm:"foreignKey:HerbTypeID"`
+	Quantity  int       `gorm:"default:0"`
+
+	UpdatedAt time.Time
 }
 
 // OreInventoryItem is a pivot table: one row per (user, ore type) pair.
@@ -184,15 +228,18 @@ type MiningSession struct {
 	ID        uint      `gorm:"primaryKey"`
 	UserID    uint      `gorm:"not null;index:idx_user_active,unique,where:status='active'"`
 	User      User      `gorm:"foreignKey:UserID"`
-	OreID     uint      `gorm:"not null"`
+	OreID     uint      `gorm:"default:0"`
 	OreType   OreType   `gorm:"foreignKey:OreID"`
+	HerbID    uint      // herb ID if gathering herb (0 if ore)
+	HerbType  HerbType  `gorm:"foreignKey:HerbID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
 	
 	// Server-side timestamps (cannot be hacked)
 	StartedAt   time.Time `gorm:"not null"`
 	EndedAt     *time.Time
 	
-	// How many ores earned in this session
-	OresMined   int    `gorm:"default:0"`
+	// How many resources earned in this session
+	OresMined     int    `gorm:"default:0"`
+	HerbsGathered int    `gorm:"default:0"`
 	
 	// Session status: 'active', 'paused', 'completed'
 	Status      string `gorm:"default:'active';index;not null"`

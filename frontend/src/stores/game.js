@@ -47,6 +47,10 @@ export async function syncCharacter() {
 // Populated by syncOreInventory() — never hardcode ore keys here
 export const ores = writable({});
 
+// Herbs inventory — dynamic map keyed by herb_key from the DB (e.g. "lavender_herb")
+// Populated by syncHerbInventory()
+export const herbs = writable({});
+
 export const activityLog = writable([
   'TOXIC PROTOCOL initialised.',
   'Awaiting operator authentication.',

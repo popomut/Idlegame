@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import { miningAPI, inventoryAPI } from '../services/api.js';
-import { ores, addLogEntry } from './game.js';
+import { ores, herbs, addLogEntry } from './game.js';
 
 export const activeMining = writable(null);
 export const miningPopups = writable([]);
@@ -11,11 +11,11 @@ export const miningProgress = writable(0); // 0-100 progress bar
 let globalProgressInterval = null;
 let isStoppingMining = false;
 
-function startGlobalProgressUpdater(miningTimeMS) {
+function startGlobalProgressUpdater(extractionTimeMS) {
   if (globalProgressInterval) {
     clearInterval(globalProgressInterval);
   }
-  const interval = miningTimeMS || 3000;
+  const interval = extractionTimeMS || 3000;
 
   globalProgressInterval = setInterval(function () {
     activeMining.subscribe(function (mining) {
@@ -38,7 +38,7 @@ function stopGlobalProgressUpdater() {
 
 activeMining.subscribe(function (mining) {
   if (mining) {
-    startGlobalProgressUpdater(mining.miningTimeMS);
+    startGlobalProgressUpdater(mining.extractionTimeMS);
   } else {
     stopGlobalProgressUpdater();
   }
@@ -47,16 +47,17 @@ activeMining.subscribe(function (mining) {
 // Internal: last synced inventory map (ore_key -> quantity)
 let lastOreInventory = {};
 
-export async function startMining(oreId, oreName, oreKey, miningTimeMS) {
+export async function startMining(oreId, oreName, oreKey, extractionTimeMS, resourceType = 'ore') {
   try {
     isLoadingMining.set(true);
-    const response = await miningAPI.startMining(oreId);
+    const response = await miningAPI.startMining(oreId, resourceType);
 
     activeMining.set({
       oreId,
       oreKey,
       oreName,
-      miningTimeMS: miningTimeMS || 3000,
+      resourceType,
+      extractionTimeMS: extractionTimeMS || 3000,
       sessionId: response.data.session_id,
       startedAt: new Date(response.data.started_at),
     });
@@ -75,13 +76,17 @@ export async function stopMining() {
     isLoadingMining.set(true);
     const response = await miningAPI.stopMining();
     const oresGained = response.data.ores_gained;
+    const wasHerb = response.data.resource_type === 'herb';
 
     activeMining.set(null);
+
+    // Always sync both inventories on stop
+    await syncOreInventory();
+    try { await syncHerbInventory(); } catch (e) { /* ignore */ }
 
     if (oresGained > 0) {
       showMiningPopup(oresGained);
       addLogEntry(`Extraction complete - gained ${oresGained} units.`);
-      await syncOreInventory();
     }
   } catch (error) {
     console.error('Failed to stop mining:', error);
@@ -100,7 +105,7 @@ export async function checkMiningStatus() {
       if (isStoppingMining) return;
       isStoppingMining = true;
       const gains = status.offline_gains;
-      activeMining.set(null); // clear first to prevent re-entrant calls
+      activeMining.set(null);
       offlineGains.set({
         wasOffline: true,
         timeMs: gains.offline_time_ms,
@@ -118,18 +123,24 @@ export async function checkMiningStatus() {
         oreId: status.current_ore.id,
         oreKey: status.current_ore.ore_key,
         oreName: status.current_ore.ore_name,
-        miningTimeMS: status.current_ore.mining_time_ms || 3000,
+        resourceType: status.current_ore.resource_type || 'ore',
+        extractionTimeMS: status.current_ore.mining_time_ms || 3000,
         startedAt: new Date(status.started_at),
       });
     } else {
       activeMining.set(null);
     }
 
-    // Sync inventory
+    // Sync inventory — ores always, herbs if present
     if (status.current_ores) {
       ores.set({ ...status.current_ores });
     } else {
       await syncOreInventory();
+    }
+    if (status.current_herbs) {
+      herbs.set({ ...status.current_herbs });
+    } else {
+      await syncHerbInventory();
     }
   } catch (error) {
     console.error('Failed to check mining status:', error);
@@ -216,4 +227,23 @@ export async function syncMiningProgress() {
 
 export function initMiningStatus() {
   checkMiningStatus();
+}
+
+// Sync herb inventory from backend
+export async function syncHerbInventory() {
+  try {
+    const response = await inventoryAPI.getHerbInventory();
+    const data = response.data;
+
+    const herbMap = {};
+    if (Array.isArray(data)) {
+      data.forEach(function (item) {
+        herbMap[item.herb_key] = item.quantity;
+      });
+    }
+
+    herbs.set(herbMap);
+  } catch (error) {
+    console.error('Failed to sync herb inventory:', error);
+  }
 }

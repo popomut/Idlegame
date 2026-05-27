@@ -38,7 +38,9 @@ func main() {
         app.Post("/api/auth/login", handlers.Login)
         app.Post("/api/auth/guest", handlers.GuestLogin)
         app.Post("/api/auth/logout", handlers.Logout)
-        app.Get("/api/ore-types", handlers.GetOreTypes)          // Master table — public
+        app.Get("/api/extractable-types", handlers.GetExtractableTypes) // Extraction types master table — public
+        app.Get("/api/ore-types", handlers.GetOreTypes)          // Ore master table — public
+        app.Get("/api/herb-types", handlers.GetHerbTypes)        // Herb master table — public
         app.Get("/api/monsters", handlers.GetMonsters)            // Monster master table — public
         app.Get("/api/equipment/types", handlers.GetEquipmentTypes) // Equipment master table — public
         app.Get("/api/map/continents", handlers.GetContinents)       // Map master table — public
@@ -70,6 +72,7 @@ func main() {
 
         // Inventory routes
         api.Get("/inventory/ores", handlers.GetOreInventory)
+        api.Get("/inventory/herbs", handlers.GetHerbInventory)
 
         // Equipment routes
         api.Get("/equipment/bag", handlers.GetEquipmentBag)

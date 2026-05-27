@@ -127,7 +127,17 @@ func Init() error {
 	}
 
 	// Seed ore types if they don't exist
+	err = seedExtractableTypes()
+	if err != nil {
+		return err
+	}
+
 	err = seedOreTypes()
+	if err != nil {
+		return err
+	}
+
+	err = seedHerbTypes()
 	if err != nil {
 		return err
 	}
@@ -198,8 +208,11 @@ func migrate() error {
 		&BlacksmithLevel{},  // blacksmith level master table
 		&UserBlacksmithSkill{}, // user blacksmith skill tracker
 		&OreInventory{},     // kept for backward-compat / migration source
+		&ExtractableType{},  // extraction type master table (must be before OreType/HerbType)
 		&OreInventoryItem{}, // new pivot table
 		&OreType{},
+		&HerbType{},
+		&HerbInventoryItem{}, // herb inventory pivot table
 		&MiningSession{},
 		&CraftableItem{},    // blacksmith recipes
 		&CraftRecipeIngredient{}, // recipe ingredients
@@ -217,6 +230,35 @@ func migrate() error {
 		&UserEquippedSlot{},
 		&ActivityLog{},
 	)
+}
+
+func seedExtractableTypes() error {
+	types := []ExtractableType{
+		{
+			TypeKey:   "ore",
+			TypeName:  "Ore",
+			Icon:      "⚙️",
+			SortOrder: 1,
+		},
+		{
+			TypeKey:   "herb",
+			TypeName:  "Herb",
+			Icon:      "🌿",
+			SortOrder: 2,
+		},
+	}
+
+	// Check if each type exists before creating
+	for _, t := range types {
+		var existing ExtractableType
+		result := DB.Where("type_key = ?", t.TypeKey).First(&existing)
+		if result.Error != nil {
+			// Not found — create
+			DB.Create(&t)
+		}
+	}
+
+	return nil
 }
 
 func seedOreTypes() error {
@@ -448,8 +490,17 @@ func seedOreTypes() error {
 		},
 	}
 
+	// Get the "ore" extraction type ID
+	var oreType ExtractableType
+	DB.Where("type_key = ?", "ore").First(&oreType)
+	if oreType.ID == 0 {
+		// Should not happen if seedExtractableTypes ran first
+		return fmt.Errorf("ore extraction type not found")
+	}
+
 	// Only create if doesn't exist — preserve user edits on restart
 	for _, ore := range ores {
+		ore.ExtractionTypeID = oreType.ID
 		var existing OreType
 		result := DB.Where("ore_key = ?", ore.OreKey).First(&existing)
 		if result.Error != nil {
@@ -470,7 +521,160 @@ func seedOreTypes() error {
 	return nil
 }
 
-// migrateOreInventoryToItems converts the old flat OreInventory rows into
+func seedHerbTypes() error {
+	herbs := []HerbType{
+		{
+			HerbKey:       "lavender_herb",
+			HerbName:      "Lavender",
+			Icon:          "🟪",
+			Color:         "#967bb6",
+			Difficulty:    "Common",
+			GatherTimeMS:  3000,
+			XPPerHerb:     10,
+			LevelRequired: 1,
+			MaxQuantity:   99999,
+			SortOrder:     1,
+			BasePrice:     2,
+		},
+		{
+			HerbKey:       "mint_herb",
+			HerbName:      "Mint",
+			Icon:          "🟩",
+			Color:         "#00b359",
+			Difficulty:    "Common",
+			GatherTimeMS:  3500,
+			XPPerHerb:     12,
+			LevelRequired: 1,
+			MaxQuantity:   99999,
+			SortOrder:     2,
+			BasePrice:     2,
+		},
+		{
+			HerbKey:       "sage_herb",
+			HerbName:      "Sage",
+			Icon:          "🟫",
+			Color:         "#8b6f47",
+			Difficulty:    "Uncommon",
+			GatherTimeMS:  4000,
+			XPPerHerb:     15,
+			LevelRequired: 3,
+			MaxQuantity:   99999,
+			SortOrder:     3,
+			BasePrice:     3,
+		},
+		{
+			HerbKey:       "rosemary_herb",
+			HerbName:      "Rosemary",
+			Icon:          "🌲",
+			Color:         "#2d5016",
+			Difficulty:    "Uncommon",
+			GatherTimeMS:  4500,
+			XPPerHerb:     18,
+			LevelRequired: 5,
+			MaxQuantity:   99999,
+			SortOrder:     4,
+			BasePrice:     3,
+		},
+		{
+			HerbKey:       "thyme_herb",
+			HerbName:      "Thyme",
+			Icon:          "🟪",
+			Color:         "#996633",
+			Difficulty:    "Uncommon",
+			GatherTimeMS:  4000,
+			XPPerHerb:     15,
+			LevelRequired: 4,
+			MaxQuantity:   99999,
+			SortOrder:     5,
+			BasePrice:     3,
+		},
+		{
+			HerbKey:       "moonflower_herb",
+			HerbName:      "Moonflower",
+			Icon:          "🌙",
+			Color:         "#e6e6fa",
+			Difficulty:    "Rare",
+			GatherTimeMS:  8000,
+			XPPerHerb:     30,
+			LevelRequired: 10,
+			MaxQuantity:   99999,
+			SortOrder:     6,
+			BasePrice:     8,
+		},
+		{
+			HerbKey:       "bloodleaf_herb",
+			HerbName:      "Bloodleaf",
+			Icon:          "🩸",
+			Color:         "#cc0000",
+			Difficulty:    "Rare",
+			GatherTimeMS:  10000,
+			XPPerHerb:     35,
+			LevelRequired: 12,
+			MaxQuantity:   99999,
+			SortOrder:     7,
+			BasePrice:     10,
+		},
+		{
+			HerbKey:       "starflower_herb",
+			HerbName:      "Starflower",
+			Icon:          "⭐",
+			Color:         "#ffdd00",
+			Difficulty:    "Rare",
+			GatherTimeMS:  12000,
+			XPPerHerb:     40,
+			LevelRequired: 15,
+			MaxQuantity:   99999,
+			SortOrder:     8,
+			BasePrice:     12,
+		},
+		{
+			HerbKey:       "twilight_herb",
+			HerbName:      "Twilight Herb",
+			Icon:          "🌌",
+			Color:         "#1a0033",
+			Difficulty:    "Epic",
+			GatherTimeMS:  20000,
+			XPPerHerb:     60,
+			LevelRequired: 25,
+			MaxQuantity:   99999,
+			SortOrder:     9,
+			BasePrice:     25,
+		},
+		{
+			HerbKey:       "ethereal_herb",
+			HerbName:      "Ethereal Essence",
+			Icon:          "✨",
+			Color:         "#b3d9ff",
+			Difficulty:    "Legendary",
+			GatherTimeMS:  30000,
+			XPPerHerb:     100,
+			LevelRequired: 40,
+			MaxQuantity:   99999,
+			SortOrder:     10,
+			BasePrice:     50,
+		},
+	}
+
+	// Get herb extraction type ID
+	var herbType ExtractableType
+	DB.Where("type_key = ?", "herb").First(&herbType)
+	if herbType.ID == 0 {
+		return fmt.Errorf("herb extraction type not found")
+	}
+
+	// Create herbs — skip if exists
+	for _, herb := range herbs {
+		herb.ExtractionTypeID = herbType.ID
+		var existing HerbType
+		result := DB.Where("herb_key = ?", herb.HerbKey).First(&existing)
+		if result.Error != nil {
+			// Not found — create
+			DB.Create(&herb)
+		}
+	}
+
+	return nil
+}
 // the new OreInventoryItem pivot rows. Safe to run multiple times.
 func migrateOreInventoryToItems() error {
 	// Nothing to do if new table already has data

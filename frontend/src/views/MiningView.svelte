@@ -1,62 +1,142 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { ores, addLogEntry } from '../stores/game.js';
+  import { ores, herbs, addLogEntry } from '../stores/game.js';
   import { miningSkill } from '../stores/mining_skill.js';
   import {
     activeMining, miningPopups, miningProgress,
     startMining, stopMining, showMiningPopup,
-    syncMiningProgress, syncOreInventoryDuringMining, syncOreInventory
+    syncMiningProgress, syncOreInventoryDuringMining, syncOreInventory, syncHerbInventory
   } from '../stores/mining.js';
   import { miningSyncInterval } from '../stores/config.js';
   import { inventoryAPI } from '../services/api.js';
 
-  let oreTypes = [];
+  let extractionTypes = [];
+  let selectedExtractionTypeId = null;
+  let oreTypes = [];         // current tab's resources (for extraction buttons)
+  let allOreTypes = [];      // all ores — for material cache
+  let allHerbTypes = [];     // all herbs — for material cache
   let inventoryOpen = true;
   let miningInterval = null;
   let syncInterval = null;
-  // Tracks local ore gains between server syncs — Svelte tracks let assignments directly
+  // Tracks local ore/herb gains between server syncs
   let pendingOres = {};
 
   onMount(async function () {
-    // Load ore types from master table
+    // Load extraction types from master table
     try {
-      const resp = await inventoryAPI.getOreTypes();
-      oreTypes = resp.data;
+      const resp = await inventoryAPI.getExtractableTypes();
+      extractionTypes = resp.data;
+      
+      // If actively gathering herb, select herb type in dropdown
+      if ($activeMining?.resourceType === 'herb') {
+        const herbType = extractionTypes.find(t => t.TypeKey === 'herb');
+        if (herbType) {
+          selectedExtractionTypeId = herbType.ID;
+          await loadResourcesByExtractionType(herbType.ID);
+        }
+      } else if (extractionTypes.length > 0) {
+        selectedExtractionTypeId = extractionTypes[0].ID;
+        await loadResourcesByExtractionType(selectedExtractionTypeId);
+      }
     } catch (e) {
-      console.error('Failed to load ore types:', e);
+      console.error('Failed to load extraction types:', e);
+      try {
+        const resp = await inventoryAPI.getOreTypes();
+        oreTypes = resp.data;
+      } catch (e2) {
+        console.error('Failed to load ore types:', e2);
+      }
+    }
+
+    // Load ALL resource types for material cache (independent of dropdown selection)
+    try {
+      const [oreResp, herbResp] = await Promise.all([
+        inventoryAPI.getOreTypes(),
+        inventoryAPI.getHerbTypes(),
+      ]);
+      allOreTypes = oreResp.data;
+      allHerbTypes = herbResp.data;
+    } catch (e) {
+      console.error('Failed to load all resource types for cache:', e);
     }
 
     // Always sync inventory first to populate Material Cache
     await syncOreInventory();
+    await syncHerbInventory();
 
     if ($activeMining) {
-      await syncOreInventoryDuringMining();
-      const ore = oreTypes.find(o => o.ID === $activeMining.oreId);
-      if (ore) {
-        startMiningPopups(ore);
+      if ($activeMining.resourceType === 'herb') {
+        await syncHerbInventory();
+      } else {
+        await syncOreInventoryDuringMining();
+      }
+      // Find the active resource — check oreTypes first, then allHerbTypes fallback
+      const resource = oreTypes.find(o => o.ID === $activeMining.oreId)
+        ?? allHerbTypes.find(h => h.ID === $activeMining.oreId)
+        ?? allOreTypes.find(o => o.ID === $activeMining.oreId);
+      if (resource) {
+        startMiningPopups(resource); // resets pendingOres internally
+        // Re-apply estimated pending after startMiningPopups resets it
+        if ($activeMining.resourceType === 'herb') {
+          const elapsed = Date.now() - new Date($activeMining.startedAt).getTime();
+          const interval = $activeMining.extractionTimeMS || 3000;
+          const estimated = Math.floor(elapsed / interval);
+          if (estimated > 0) {
+            pendingOres = { [$activeMining.oreKey]: estimated };
+          }
+        }
       }
     }
   });
+
+  async function loadResourcesByExtractionType(typeId) {
+    try {
+      const extractionType = extractionTypes.find(t => t.ID === typeId);
+      if (!extractionType) {
+        console.error('Extraction type not found:', typeId);
+        return;
+      }
+
+      let resp;
+      if (extractionType.TypeKey === 'ore') {
+        resp = await inventoryAPI.getOreTypes(typeId);
+      } else if (extractionType.TypeKey === 'herb') {
+        resp = await inventoryAPI.getHerbTypes(typeId);
+      } else {
+        console.error('Unknown extraction type:', extractionType.TypeKey);
+        return;
+      }
+      
+      oreTypes = resp.data;
+    } catch (e) {
+      console.error('Failed to load resources for extraction type:', e);
+    }
+  }
+
+  function handleExtractionTypeChange(e) {
+    selectedExtractionTypeId = parseInt(e.target.value, 10);
+    loadResourcesByExtractionType(selectedExtractionTypeId);
+  }
 
   function startMiningPopups(ore) {
     if (miningInterval) clearInterval(miningInterval);
     if (syncInterval) clearInterval(syncInterval);
 
-    const interval = ore.MiningTimeMS || 3000;
-    const oreKey = ore.OreKey;
+    const interval = ore.MiningTimeMS ?? ore.GatherTimeMS ?? 3000;
+    const resourceKey = ore.OreKey ?? ore.HerbKey;
+    const isHerb = !!ore.HerbKey;
     const maxQty = ore.MaxQuantity || 0;
 
     // Reset pending on new session so display starts clean
     pendingOres = {};
 
     miningInterval = setInterval(function () {
-      // Check cap against base (server) + pending
-      const base = ($ores[oreKey] || 0);
-      const pending = (pendingOres[oreKey] || 0);
+      // Check cap against base (server) + pending — use correct store
+      const base = isHerb ? ($herbs[resourceKey] || 0) : ($ores[resourceKey] || 0);
+      const pending = (pendingOres[resourceKey] || 0);
       if (maxQty > 0 && base + pending >= maxQty) return;
 
-      // Svelte tracks let variable assignments — this reliably triggers re-render
-      pendingOres = { ...pendingOres, [oreKey]: pending + 1 };
+      pendingOres = { ...pendingOres, [resourceKey]: pending + 1 };
       showMiningPopup(1);
     }, interval);
 
@@ -64,9 +144,13 @@
     const unsub = miningSyncInterval.subscribe(v => { syncIntervalMs = v; });
     unsub();
 
-    // Sync with server every 15s — reset pending since server now has the real count
+    // Sync with server every 15s
     syncInterval = setInterval(async function () {
-      await syncOreInventoryDuringMining();
+      if (isHerb) {
+        await syncHerbInventory();
+      } else {
+        await syncOreInventoryDuringMining();
+      }
       pendingOres = {};
     }, syncIntervalMs);
   }
@@ -90,7 +174,11 @@
       addLogEntry(`Stopped extracting ${oreName}.`);
     } else if (ore) {
       pendingOres = {};
-      await startMining(ore.ID, ore.OreName, ore.OreKey, ore.MiningTimeMS);
+      const extractionTime = ore.MiningTimeMS ?? ore.GatherTimeMS ?? 3000;
+      const resourceKey = ore.OreKey ?? ore.HerbKey;
+      const resourceName = ore.OreName ?? ore.HerbName;
+      const resourceType = ore.HerbKey ? 'herb' : 'ore';
+      await startMining(ore.ID, resourceName, resourceKey, extractionTime, resourceType);
       startMiningPopups(ore);
     }
   }
@@ -128,6 +216,23 @@
     <p class="page-subtitle">Salvage materials from contaminated zones</p>
   </div>
 
+  <!-- Extraction type selector -->
+  {#if extractionTypes.length > 0}
+    <div class="extraction-controls">
+      <label for="extraction-type-select" class="control-label">Extraction Type:</label>
+      <select
+        id="extraction-type-select"
+        value={selectedExtractionTypeId}
+        on:change={handleExtractionTypeChange}
+        class="type-select"
+      >
+        {#each extractionTypes as type (type.ID)}
+          <option value={type.ID}>{type.TypeName}</option>
+        {/each}
+      </select>
+    </div>
+  {/if}
+
   <!-- Ore inventory - collapsible -->
   <div class="card inventory-card">
     <button class="card-header collapse-toggle" on:click={() => inventoryOpen = !inventoryOpen} aria-expanded={inventoryOpen}>
@@ -138,26 +243,33 @@
 
     {#if inventoryOpen}
       <div class="ore-summary">
-        {#if oreTypes.length === 0}
+        {#if allOreTypes.length === 0 && allHerbTypes.length === 0}
           <p class="loading-text">Loading cache...</p>
         {:else}
-          {@const collectedOres = oreTypes.filter(ore => ($ores[ore.OreKey] ?? 0) + (pendingOres[ore.OreKey] ?? 0) > 0)}
-          {#if collectedOres.length === 0}
+          {@const allResources = [
+            ...allOreTypes.map(o => ({ ...o, _isHerb: false, _key: o.OreKey })),
+            ...allHerbTypes.map(h => ({ ...h, _isHerb: true, _key: h.HerbKey })),
+          ]}
+          {@const collectedResources = allResources.filter(r => {
+            const storeVal = r._isHerb ? ($herbs[r._key] ?? 0) : ($ores[r._key] ?? 0);
+            return storeVal + (pendingOres[r._key] ?? 0) > 0;
+          })}
+          {#if collectedResources.length === 0}
             <p class="loading-text">No materials collected yet.</p>
           {:else}
-            {#each collectedOres as ore}
+            {#each collectedResources as r}
               <div class="ore-count">
                 <div class="ore-icon">
-                  {#if ore.SVG}
-                    <div class="ore-svg-small">{@html ore.SVG}</div>
+                  {#if r.SVG}
+                    <div class="ore-svg-small">{@html r.SVG}</div>
                   {:else}
-                    <span>{ore.Icon}</span>
+                    <span>{r.Icon}</span>
                   {/if}
                 </div>
-                <span class="ore-label">{ore.OreName}</span>
-                <span class="ore-qty">{($ores[ore.OreKey] ?? 0) + (pendingOres[ore.OreKey] ?? 0)}</span>
-                {#if ore.MaxQuantity > 0}
-                  <span class="ore-max">/ {ore.MaxQuantity}</span>
+                <span class="ore-label">{r.OreName ?? r.HerbName}</span>
+                <span class="ore-qty">{((r._isHerb ? $herbs[r._key] : $ores[r._key]) ?? 0) + (pendingOres[r._key] ?? 0)}</span>
+                {#if r.MaxQuantity > 0}
+                  <span class="ore-max">/ {r.MaxQuantity}</span>
                 {/if}
               </div>
             {/each}
@@ -185,7 +297,8 @@
         <p class="loading-text">Loading extraction targets...</p>
       {:else}
         {#each oreTypes as ore}
-          {@const isActive = $activeMining?.oreKey === ore.OreKey}
+          {@const resourceKey = ore.OreKey ?? ore.HerbKey}
+          {@const isActive = $activeMining?.oreKey === resourceKey}
           {@const pickaxe = pickaxeLabel(ore.PickaxeRequired)}
           {@const isLocked = ore.LevelRequired > $miningSkill.level}
           <button
@@ -205,13 +318,13 @@
               {/if}
             </div>
             <div class="ore-btn-info">
-              <div class="ore-btn-name">{ore.OreName}</div>
+              <div class="ore-btn-name">{ore.OreName ?? ore.HerbName}</div>
               <div class="ore-btn-meta">
                 {#if isLocked}
                   <span class="badge locked-badge">🔒 Level {ore.LevelRequired}</span>
                 {:else}
                   <span class="badge difficulty">{ore.Difficulty}</span>
-                  <span class="badge interval">&#x23F3; {formatInterval(ore.MiningTimeMS)}</span>
+                  <span class="badge interval">&#x23F3; {formatInterval(ore.MiningTimeMS ?? ore.GatherTimeMS)}</span>
                   {#if pickaxe}
                     <span class="badge pickaxe">&#x26CF; {pickaxe}</span>
                   {/if}
@@ -222,7 +335,7 @@
               {#if isActive}
                 <span class="mining-indicator">&#x23F1;&#xFE0F;</span>
               {:else if !isLocked}
-                <span class="ore-btn-qty">{($ores[ore.OreKey] ?? 0) + (pendingOres[ore.OreKey] ?? 0)}</span>
+                <span class="ore-btn-qty">{((ore.OreKey ? $ores[resourceKey] : $herbs[resourceKey]) ?? 0) + (pendingOres[resourceKey] ?? 0)}</span>
               {/if}
             </div>
           </button>
@@ -232,7 +345,7 @@
 
     {#if $activeMining}
       <div class="mining-info">
-        <p class="mining-text">Extracting 1 unit every {formatInterval($activeMining.miningTimeMS)}...</p>
+        <p class="mining-text">Extracting 1 unit every {formatInterval($activeMining.extractionTimeMS)}...</p>
 
         <div class="progress-bar-container">
           <div class="progress-bar" style="width: {$miningProgress}%"></div>
@@ -279,6 +392,45 @@
     margin: 0;
     letter-spacing: 0.5px;
     text-transform: uppercase;
+  }
+
+  .extraction-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--color-bg-panel);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+  }
+
+  .control-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-heading);
+    white-space: nowrap;
+  }
+
+  .type-select {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .type-select:hover {
+    border-color: var(--color-gold-dim);
+  }
+
+  .type-select:focus {
+    outline: none;
+    border-color: var(--color-gold-bright);
+    background: var(--color-bg-panel);
   }
 
   .card {

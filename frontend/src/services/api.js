@@ -44,14 +44,27 @@ export const authAPI = {
 };
 
 export const miningAPI = {
-  startMining: (oreId) => api.post('/mining/start', { ore_id: oreId }),
+  startMining: (oreId, resourceType = 'ore') => api.post('/mining/start', { ore_id: oreId, resource_type: resourceType }),
   stopMining: () => api.post('/mining/stop'),
   getMiningStatus: () => api.get('/mining/status'),
 };
 
 export const inventoryAPI = {
   getOreInventory: () => api.get('/inventory/ores'),
-  getOreTypes: () => axios.get(`${API_BASE_URL}/api/ore-types`), // public — no auth cookie needed
+  getHerbInventory: () => api.get('/inventory/herbs'),
+  getExtractableTypes: () => axios.get(`${API_BASE_URL}/api/extractable-types`), // public — no auth cookie needed
+  getOreTypes: (extractionTypeId) => {
+    const url = extractionTypeId 
+      ? `${API_BASE_URL}/api/ore-types?extraction_type_id=${extractionTypeId}`
+      : `${API_BASE_URL}/api/ore-types`;
+    return axios.get(url);
+  }, // public — no auth cookie needed
+  getHerbTypes: (extractionTypeId) => {
+    const url = extractionTypeId 
+      ? `${API_BASE_URL}/api/herb-types?extraction_type_id=${extractionTypeId}`
+      : `${API_BASE_URL}/api/herb-types`;
+    return axios.get(url);
+  }, // public — no auth cookie needed
 };
 
 export const userAPI = {
