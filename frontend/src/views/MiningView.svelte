@@ -113,9 +113,9 @@
     }
   }
 
-  function handleExtractionTypeChange(e) {
-    selectedExtractionTypeId = parseInt(e.target.value, 10);
-    loadResourcesByExtractionType(selectedExtractionTypeId);
+  function selectExtractionType(typeId) {
+    selectedExtractionTypeId = typeId;
+    loadResourcesByExtractionType(typeId);
   }
 
   function startMiningPopups(ore) {
@@ -216,20 +216,20 @@
     <p class="page-subtitle">Salvage materials from contaminated zones</p>
   </div>
 
-  <!-- Extraction type selector -->
+  <!-- Extraction type selector - image buttons -->
   {#if extractionTypes.length > 0}
-    <div class="extraction-controls">
-      <label for="extraction-type-select" class="control-label">Extraction Type:</label>
-      <select
-        id="extraction-type-select"
-        value={selectedExtractionTypeId}
-        on:change={handleExtractionTypeChange}
-        class="type-select"
-      >
-        {#each extractionTypes as type (type.ID)}
-          <option value={type.ID}>{type.TypeName}</option>
-        {/each}
-      </select>
+    <div class="extraction-buttons">
+      {#each extractionTypes as type (type.ID)}
+        <button
+          class="extraction-btn"
+          class:active={selectedExtractionTypeId === type.ID}
+          on:click={() => selectExtractionType(type.ID)}
+          title={type.TypeName}
+        >
+          <span class="extraction-icon">{type.Icon}</span>
+          <span class="extraction-name">{type.TypeName}</span>
+        </button>
+      {/each}
     </div>
   {/if}
 
@@ -704,5 +704,49 @@
   @keyframes popup-float {
     0% { opacity: 1; transform: translateY(0) scale(1); }
     100% { opacity: 0; transform: translateY(-30px) scale(1.1); }
+  }
+
+  .extraction-buttons {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    flex-wrap: wrap;
+  }
+
+  .extraction-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 20px;
+    background-color: var(--color-bg-elevated);
+    border: 2px solid var(--color-border-subtle);
+    border-radius: 8px;
+    color: var(--color-text);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all var(--transition-fast);
+    text-align: center;
+  }
+
+  .extraction-btn:hover {
+    background-color: var(--color-bg-hover);
+    border-color: var(--color-border);
+  }
+
+  .extraction-btn.active {
+    background-color: rgba(200, 168, 75, 0.15);
+    border-color: var(--color-gold-bright);
+    color: var(--color-gold-bright);
+  }
+
+  .extraction-icon {
+    font-size: 24px;
+  }
+
+  .extraction-name {
+    font-size: 12px;
   }
 </style>
