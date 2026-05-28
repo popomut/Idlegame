@@ -609,6 +609,7 @@
     width: 100%;
     font-family: var(--font-body);
     transition: background-color var(--transition-fast), border-color var(--transition-fast);
+    position: relative;
   }
 
   .bag-item:hover {
@@ -652,6 +653,9 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     flex-shrink: 0;
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
   }
 
   .bag-item-equipped {

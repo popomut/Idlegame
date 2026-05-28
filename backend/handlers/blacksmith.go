@@ -305,49 +305,58 @@ func CalculateOfflineCraftingGains(userID uint, session database.BlacksmithSessi
 	var ingredients []database.CraftRecipeIngredient
 	database.DB.Where("craftable_item_id = ?", recipe.ID).Find(&ingredients)
 
-	// Simulate production to count how many can actually be produced
+	// Build in-memory quantity maps (fetched once, decremented per iteration)
+	// This fixes bug where per-loop DB queries always returned original quantity
+	oreQuantities := make(map[string]int)   // ore_key -> current simulated quantity
+	ingotQuantities := make(map[string]int) // ingot_key -> current simulated quantity
+
+	for _, ing := range ingredients {
+		if ing.IngredientType == "ore" {
+			if _, loaded := oreQuantities[ing.IngredientKey]; !loaded {
+				var oreType database.OreType
+				database.DB.Where("ore_key = ?", ing.IngredientKey).First(&oreType)
+				var item database.OreInventoryItem
+				database.DB.Where("user_id = ? AND ore_type_id = ?", userID, oreType.ID).First(&item)
+				oreQuantities[ing.IngredientKey] = item.Quantity
+			}
+		} else if ing.IngredientType == "ingot" {
+			if _, loaded := ingotQuantities[ing.IngredientKey]; !loaded {
+				var item database.UserIngotInventory
+				database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
+				ingotQuantities[ing.IngredientKey] = item.Quantity
+			}
+		}
+	}
+
+	// Simulate production using in-memory maps so deductions persist between iterations
 	ingotsProduced := 0
 	for i := 0; i < maxIngotsFromTime; i++ {
 		// Check if we have all required ingredients for this ingot
 		canProduce := true
 		for _, ing := range ingredients {
 			if ing.IngredientType == "ore" {
-				var oreType database.OreType
-				database.DB.Where("ore_key = ?", ing.IngredientKey).First(&oreType)
-				var item database.OreInventoryItem
-				database.DB.Where("user_id = ? AND ore_type_id = ?", userID, oreType.ID).First(&item)
-				if item.Quantity < ing.QuantityRequired {
+				if oreQuantities[ing.IngredientKey] < ing.QuantityRequired {
 					canProduce = false
 					break
 				}
 			} else if ing.IngredientType == "ingot" {
-				var item database.UserIngotInventory
-				database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
-				if item.Quantity < ing.QuantityRequired {
+				if ingotQuantities[ing.IngredientKey] < ing.QuantityRequired {
 					canProduce = false
 					break
 				}
 			}
 		}
 
-		// If we can't produce, stop here
 		if !canProduce {
 			break
 		}
 
-		// Deduct ingredients from current inventory (in our simulation)
-		// This allows us to see how many sequential ingots can be made
+		// Deduct from in-memory maps (persists across iterations)
 		for _, ing := range ingredients {
 			if ing.IngredientType == "ore" {
-				var oreType database.OreType
-				database.DB.Where("ore_key = ?", ing.IngredientKey).First(&oreType)
-				var item database.OreInventoryItem
-				database.DB.Where("user_id = ? AND ore_type_id = ?", userID, oreType.ID).First(&item)
-				item.Quantity -= ing.QuantityRequired
+				oreQuantities[ing.IngredientKey] -= ing.QuantityRequired
 			} else if ing.IngredientType == "ingot" {
-				var item database.UserIngotInventory
-				database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
-				item.Quantity -= ing.QuantityRequired
+				ingotQuantities[ing.IngredientKey] -= ing.QuantityRequired
 			}
 		}
 
@@ -525,13 +534,14 @@ func GetCraftingStatus(c *fiber.Ctx) error {
 	}
 
 	// Add pending (unsaved) ingots for the active session
+	// Use ingredient-aware simulation so display respects ingredient limits
 	if isActive {
 		recipe := session.CraftableItem
-		
+
 		// Check if we still have all required ingredients
 		var ingredients []database.CraftRecipeIngredient
 		database.DB.Where("craftable_item_id = ?", recipe.ID).Find(&ingredients)
-		
+
 		canContinue := true
 		for _, ing := range ingredients {
 			if ing.IngredientType == "ore" {
@@ -552,18 +562,69 @@ func GetCraftingStatus(c *fiber.Ctx) error {
 				}
 			}
 		}
-		
+
 		// If we don't have ingredients, stop the session
 		if !canContinue {
 			database.DB.Model(&session).Update("status", "completed")
 			isActive = false
 		} else {
-			// Only calculate pending ingots if we can still craft
+			// Calculate pending using ingredient-aware simulation (same as CalculateOfflineCraftingGains)
 			now := time.Now().UTC()
 			elapsed := now.Sub(session.StartedAt)
-			pendingIngots := 0
+			maxPendingFromTime := 0
 			if recipe.CraftingTimeMS > 0 {
-				pendingIngots = int(elapsed.Milliseconds()) / recipe.CraftingTimeMS
+				maxPendingFromTime = int(elapsed.Milliseconds()) / recipe.CraftingTimeMS
+			}
+
+			// Build in-memory maps from current DB quantities
+			oreQuantities := make(map[string]int)
+			ingotQuantities := make(map[string]int)
+			for _, ing := range ingredients {
+				if ing.IngredientType == "ore" {
+					if _, loaded := oreQuantities[ing.IngredientKey]; !loaded {
+						var oreType database.OreType
+						database.DB.Where("ore_key = ?", ing.IngredientKey).First(&oreType)
+						var item database.OreInventoryItem
+						database.DB.Where("user_id = ? AND ore_type_id = ?", userID, oreType.ID).First(&item)
+						oreQuantities[ing.IngredientKey] = item.Quantity
+					}
+				} else if ing.IngredientType == "ingot" {
+					if _, loaded := ingotQuantities[ing.IngredientKey]; !loaded {
+						var item database.UserIngotInventory
+						database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
+						ingotQuantities[ing.IngredientKey] = item.Quantity
+					}
+				}
+			}
+
+			// Simulate pending ingots respecting ingredient limits
+			pendingIngots := 0
+			for i := 0; i < maxPendingFromTime; i++ {
+				canProduce := true
+				for _, ing := range ingredients {
+					if ing.IngredientType == "ore" {
+						if oreQuantities[ing.IngredientKey] < ing.QuantityRequired {
+							canProduce = false
+							break
+						}
+					} else if ing.IngredientType == "ingot" {
+						if ingotQuantities[ing.IngredientKey] < ing.QuantityRequired {
+							canProduce = false
+							break
+						}
+					}
+				}
+				if !canProduce {
+					break
+				}
+				for _, ing := range ingredients {
+					if ing.IngredientType == "ore" {
+						oreQuantities[ing.IngredientKey] -= ing.QuantityRequired
+					} else if ing.IngredientType == "ingot" {
+						ingotQuantities[ing.IngredientKey] -= ing.QuantityRequired
+					}
+				}
+				pendingIngots++
 			}
 
 			// Apply max quantity cap

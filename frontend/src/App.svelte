@@ -3,8 +3,8 @@
   import { sidebarOpen } from './stores/sidebar.js';
   import { currentPage } from './stores/navigation.js';
   import { isAuthenticated, loadAuthFromStorage } from './stores/auth.js';
-  import { initMiningStatus } from './stores/mining.js';
-  import { initCraftingStatus } from './stores/blacksmith.js';
+  import { initMiningStatus, activeMining, tabSwitchGains } from './stores/mining.js';
+  import { initCraftingStatus, activeCrafting, tabSwitchCraftingGains } from './stores/blacksmith.js';
   import { loadConfigFromStorage } from './stores/config.js';
   import { theme } from './stores/theme.js';
   import { syncCharacter } from './stores/game.js';
@@ -73,12 +73,55 @@
     }
 
     // Global page visibility handler: when user returns from background,
-    // sync combat status immediately to catch up with offline progress
+    // sync combat status immediately to catch up with offline progress.
+    // Also show tab-switch summary popup for mining and crafting.
     if (typeof document !== 'undefined') {
+      let hiddenAt = null;
+      const MIN_TAB_SWITCH_MS = 5000; // only show popup if hidden >= 5 seconds
+
       const handlePageReturn = async () => {
-        if (!document.hidden && $combatState.isActive) {
-          // Page is visible and combat is active, fetch latest status
-          await fetchCombatStatus();
+        if (document.hidden) {
+          // Tab became hidden — record time
+          hiddenAt = Date.now();
+        } else {
+          // Tab became visible
+          if ($combatState.isActive) {
+            await fetchCombatStatus();
+          }
+
+          if (hiddenAt !== null) {
+            const elapsed = Date.now() - hiddenAt;
+            hiddenAt = null;
+
+            if (elapsed >= MIN_TAB_SWITCH_MS) {
+              // Check mining tab-switch gains
+              const mining = $activeMining;
+              if (mining && mining.startedAt && mining.extractionTimeMS) {
+                const gained = Math.floor(elapsed / mining.extractionTimeMS);
+                if (gained > 0) {
+                  tabSwitchGains.set({
+                    timeMs: elapsed,
+                    gained,
+                    resourceName: mining.oreName,
+                    resourceType: mining.resourceType,
+                  });
+                }
+              }
+
+              // Check crafting tab-switch gains
+              const crafting = $activeCrafting;
+              if (crafting && crafting.startedAt && crafting.craftingTimeMS) {
+                const gained = Math.floor(elapsed / crafting.craftingTimeMS);
+                if (gained > 0) {
+                  tabSwitchCraftingGains.set({
+                    timeMs: elapsed,
+                    gained,
+                    recipeName: crafting.recipeName,
+                  });
+                }
+              }
+            }
+          }
         }
       };
       document.addEventListener('visibilitychange', handlePageReturn);

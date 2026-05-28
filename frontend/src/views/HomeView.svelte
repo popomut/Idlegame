@@ -139,11 +139,11 @@
     </div>
   </div>
 
-  <!-- Blacksmith skill card -->
-  <div class="card blacksmith-card">
+  <!-- Crafting skill card -->
+  <div class="card crafting-card">
     <div class="card-header">
       <span class="card-icon">⚒️</span>
-      <h2 class="card-title">Blacksmith Skill</h2>
+      <h2 class="card-title">Crafting Skill</h2>
       <span class="level-tag">LEVEL {$blacksmithSkill.level}</span>
     </div>
 

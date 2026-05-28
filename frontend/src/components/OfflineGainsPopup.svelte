@@ -1,6 +1,6 @@
 <script>
-  import { offlineGains, syncOreInventory } from '../stores/mining.js';
-  import { offlineCraftingGains, syncIngotInventory } from '../stores/blacksmith.js';
+  import { offlineGains, syncOreInventory, tabSwitchGains } from '../stores/mining.js';
+  import { offlineCraftingGains, syncIngotInventory, tabSwitchCraftingGains } from '../stores/blacksmith.js';
   import { fade, scale } from 'svelte/transition';
 
   async function handleAwesomeClick() {
@@ -11,6 +11,19 @@
       await syncIngotInventory();
       offlineCraftingGains.set(null);
     }
+  }
+
+  function handleTabSwitchDismiss() {
+    // Just dismiss — session continues uninterrupted
+    tabSwitchGains.set(null);
+    tabSwitchCraftingGains.set(null);
+  }
+
+  function formatTime(ms) {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
   }
 </script>
 
@@ -47,6 +60,42 @@
       </p>
       <button class="popup-btn" on:click={handleAwesomeClick}>
         Awesome!
+      </button>
+    </div>
+  </div>
+{:else if $tabSwitchGains}
+  <div class="offline-popup" in:fade out:fade>
+    <div class="popup-content" in:scale out:scale>
+      <div class="popup-icon">{$tabSwitchGains.resourceType === 'herb' ? '🌿' : '⛏️'}</div>
+      <h2 class="popup-title">Still Working!</h2>
+      <p class="popup-text">
+        Gathered ~<span class="count">{$tabSwitchGains.gained}</span>
+        <span class="name">{$tabSwitchGains.resourceName}</span>
+        while you were away.
+      </p>
+      <p class="popup-time">
+        (Away for {formatTime($tabSwitchGains.timeMs)})
+      </p>
+      <button class="popup-btn" on:click={handleTabSwitchDismiss}>
+        Nice!
+      </button>
+    </div>
+  </div>
+{:else if $tabSwitchCraftingGains}
+  <div class="offline-popup" in:fade out:fade>
+    <div class="popup-content" in:scale out:scale>
+      <div class="popup-icon">⚒️</div>
+      <h2 class="popup-title">Still Crafting!</h2>
+      <p class="popup-text">
+        Crafted ~<span class="count">{$tabSwitchCraftingGains.gained}</span>
+        <span class="name">{$tabSwitchCraftingGains.recipeName}</span>
+        while you were away.
+      </p>
+      <p class="popup-time">
+        (Away for {formatTime($tabSwitchCraftingGains.timeMs)})
+      </p>
+      <button class="popup-btn" on:click={handleTabSwitchDismiss}>
+        Nice!
       </button>
     </div>
   </div>

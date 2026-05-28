@@ -193,13 +193,14 @@
 
       remainingCrafts--;
 
-      // Svelte tracks let assignments - this reliably triggers re-render
+      // Check server state FIRST — if session stopped (no ingredients), don't show popup
+      const stillActive = await syncCraftingProgressDuringCrafting(recipe.name);
+      if (!stillActive) return;
+
+      // Only show popup and increment pending if server confirms still active
       const currentPending = (pendingIngots[itemKey] || 0);
       pendingIngots = { ...pendingIngots, [itemKey]: currentPending + 1 };
       showCraftingPopup(1, itemKey);
-
-      // Check server state every cycle — catches ingredient depletion immediately
-      await syncCraftingProgressDuringCrafting(recipe.name);
     }, interval);
 
     // Keep a fallback sync in case the cycle check misses a tick
@@ -233,9 +234,13 @@
         pendingIngots = {};
         $activeCrafting = null;
         addLogEntry(`⚠️ Crafting stopped - not enough ingredients.`);
+        return false; // signal to caller that crafting stopped
       }
+
+      return true; // still active
     } catch (error) {
       console.error('Failed to sync crafting progress:', error);
+      return true; // assume still active on error
     }
   }
 
@@ -269,7 +274,7 @@
 
 <div class="view-blacksmith">
   <div class="page-header">
-    <h1 class="page-title">⚒️ Blacksmith Forge</h1>
+    <h1 class="page-title">⚒️ Crafting Forge</h1>
     <p class="page-subtitle">Craft equipment and materials</p>
   </div>
 

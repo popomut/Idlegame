@@ -6,6 +6,7 @@ import { addLogEntry } from './game.js';
 export const activeCrafting = writable(null);
 export const craftingPopups = writable([]);
 export const offlineCraftingGains = writable(null);
+export const tabSwitchCraftingGains = writable(null); // gains while tab was hidden (session continues)
 export const isLoadingCrafting = writable(false);
 export const craftingProgress = writable(0); // 0-100 progress bar (per ingot cycle)
 export const ingotInventory = writable({});

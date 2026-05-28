@@ -5,6 +5,7 @@ import { ores, herbs, addLogEntry } from './game.js';
 export const activeMining = writable(null);
 export const miningPopups = writable([]);
 export const offlineGains = writable(null);
+export const tabSwitchGains = writable(null); // gains while tab was hidden (session continues)
 export const isLoadingMining = writable(false);
 export const miningProgress = writable(0); // 0-100 progress bar
 
