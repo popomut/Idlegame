@@ -22,6 +22,7 @@ type OfflineCraftingGainsInfo struct {
 	OfflineTime    int64     `json:"offline_time_ms"`
 	IngotsGained   int       `json:"ingots_gained"`
 	RecipeName     string    `json:"recipe_name"`
+	OutputType     string    `json:"output_type"`
 	LastActiveTime time.Time `json:"last_active_time"`
 }
 
@@ -145,6 +146,7 @@ func GetCraftableItems(c *fiber.Ctx) error {
 		Name             string                                  `json:"name"`
 		Icon             string                                  `json:"icon"`
 		ItemKey          string                                  `json:"item_key"`
+		OutputType       string                                  `json:"output_type"`
 		CraftingTimeMS   int                                     `json:"crafting_time_ms"`
 		XPPerCraft       int                                     `json:"xp_per_craft"`
 		LevelRequired    int                                     `json:"level_required"`
@@ -163,6 +165,7 @@ func GetCraftableItems(c *fiber.Ctx) error {
 			Name:           recipe.Name,
 			Icon:           recipe.Icon,
 			ItemKey:        recipe.ItemKey,
+			OutputType:     recipe.OutputType,
 			CraftingTimeMS: recipe.CraftingTimeMS,
 			XPPerCraft:     recipe.XPPerCraft,
 			LevelRequired:  recipe.LevelRequired,
@@ -241,6 +244,14 @@ func StartCrafting(c *fiber.Ctx) error {
 			if item.Quantity < ing.QuantityRequired {
 				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "not enough " + ing.IngredientKey})
 			}
+		} else if ing.IngredientType == "herb" {
+			var herbType database.HerbType
+			database.DB.Where("herb_key = ?", ing.IngredientKey).First(&herbType)
+			var item database.HerbInventoryItem
+			database.DB.Where("user_id = ? AND herb_type_id = ?", userID, herbType.ID).First(&item)
+			if item.Quantity < ing.QuantityRequired {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "not enough " + ing.IngredientKey})
+			}
 		} else if ing.IngredientType == "ingot" {
 			var ingotItem database.UserIngotInventory
 			database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&ingotItem)
@@ -285,6 +296,7 @@ func CalculateOfflineCraftingGains(userID uint, session database.BlacksmithSessi
 
 	recipe := session.CraftableItem
 	gains.RecipeName = recipe.Name
+	gains.OutputType = recipe.OutputType
 
 	now := time.Now().UTC()
 	elapsed := now.Sub(session.StartedAt)
@@ -308,6 +320,7 @@ func CalculateOfflineCraftingGains(userID uint, session database.BlacksmithSessi
 	// Build in-memory quantity maps (fetched once, decremented per iteration)
 	// This fixes bug where per-loop DB queries always returned original quantity
 	oreQuantities := make(map[string]int)   // ore_key -> current simulated quantity
+	herbQuantities := make(map[string]int)  // herb_key -> current simulated quantity
 	ingotQuantities := make(map[string]int) // ingot_key -> current simulated quantity
 
 	for _, ing := range ingredients {
@@ -318,6 +331,14 @@ func CalculateOfflineCraftingGains(userID uint, session database.BlacksmithSessi
 				var item database.OreInventoryItem
 				database.DB.Where("user_id = ? AND ore_type_id = ?", userID, oreType.ID).First(&item)
 				oreQuantities[ing.IngredientKey] = item.Quantity
+			}
+		} else if ing.IngredientType == "herb" {
+			if _, loaded := herbQuantities[ing.IngredientKey]; !loaded {
+				var herbType database.HerbType
+				database.DB.Where("herb_key = ?", ing.IngredientKey).First(&herbType)
+				var item database.HerbInventoryItem
+				database.DB.Where("user_id = ? AND herb_type_id = ?", userID, herbType.ID).First(&item)
+				herbQuantities[ing.IngredientKey] = item.Quantity
 			}
 		} else if ing.IngredientType == "ingot" {
 			if _, loaded := ingotQuantities[ing.IngredientKey]; !loaded {
@@ -339,6 +360,11 @@ func CalculateOfflineCraftingGains(userID uint, session database.BlacksmithSessi
 					canProduce = false
 					break
 				}
+			} else if ing.IngredientType == "herb" {
+				if herbQuantities[ing.IngredientKey] < ing.QuantityRequired {
+					canProduce = false
+					break
+				}
 			} else if ing.IngredientType == "ingot" {
 				if ingotQuantities[ing.IngredientKey] < ing.QuantityRequired {
 					canProduce = false
@@ -355,6 +381,8 @@ func CalculateOfflineCraftingGains(userID uint, session database.BlacksmithSessi
 		for _, ing := range ingredients {
 			if ing.IngredientType == "ore" {
 				oreQuantities[ing.IngredientKey] -= ing.QuantityRequired
+			} else if ing.IngredientType == "herb" {
+				herbQuantities[ing.IngredientKey] -= ing.QuantityRequired
 			} else if ing.IngredientType == "ingot" {
 				ingotQuantities[ing.IngredientKey] -= ing.QuantityRequired
 			}
@@ -411,6 +439,15 @@ func CalculateAndSaveCraftingGains(userID uint, session database.BlacksmithSessi
 					canProduce = false
 					break
 				}
+			} else if ing.IngredientType == "herb" {
+				var herbType database.HerbType
+				database.DB.Where("herb_key = ?", ing.IngredientKey).First(&herbType)
+				var item database.HerbInventoryItem
+				database.DB.Where("user_id = ? AND herb_type_id = ?", userID, herbType.ID).First(&item)
+				if item.Quantity < ing.QuantityRequired {
+					canProduce = false
+					break
+				}
 			} else if ing.IngredientType == "ingot" {
 				var item database.UserIngotInventory
 				database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
@@ -435,6 +472,13 @@ func CalculateAndSaveCraftingGains(userID uint, session database.BlacksmithSessi
 					"UPDATE ore_inventory_items SET quantity = quantity - ? WHERE user_id = ? AND ore_type_id = ?",
 					ing.QuantityRequired, userID, oreType.ID,
 				)
+			} else if ing.IngredientType == "herb" {
+				var herbType database.HerbType
+				database.DB.Where("herb_key = ?", ing.IngredientKey).First(&herbType)
+				database.DB.Exec(
+					"UPDATE herb_inventory_items SET quantity = quantity - ? WHERE user_id = ? AND herb_type_id = ?",
+					ing.QuantityRequired, userID, herbType.ID,
+				)
 			} else if ing.IngredientType == "ingot" {
 				database.DB.Exec(
 					"UPDATE user_ingot_inventories SET quantity = quantity - ? WHERE user_id = ? AND ingot_key = ?",
@@ -446,15 +490,24 @@ func CalculateAndSaveCraftingGains(userID uint, session database.BlacksmithSessi
 		ingotsProduced++
 	}
 
-	// Add crafted ingots to inventory
-	if recipe.OutputType == "ingot" && ingotsProduced > 0 {
-		var ingotItem database.UserIngotInventory
-		database.DB.FirstOrCreate(&ingotItem, database.UserIngotInventory{UserID: userID, IngotKey: recipe.ItemKey})
-
-		// Apply max quantity cap if set
+	// Add crafted items to appropriate inventory based on OutputType
+	if ingotsProduced > 0 {
 		quantityToAdd := ingotsProduced
+		
+		// Apply max quantity cap if set
 		if recipe.MaxQuantity > 0 {
-			remaining := recipe.MaxQuantity - ingotItem.Quantity
+			var existingQty int
+			if recipe.OutputType == "ingot" {
+				var ingotItem database.UserIngotInventory
+				database.DB.Where("user_id = ? AND ingot_key = ?", userID, recipe.ItemKey).First(&ingotItem)
+				existingQty = ingotItem.Quantity
+			} else if recipe.OutputType == "potion" {
+				var potionItem database.UserPotionInventoryItem
+				database.DB.Where("user_id = ? AND potion_key = ?", userID, recipe.ItemKey).First(&potionItem)
+				existingQty = potionItem.Quantity
+			}
+			
+			remaining := recipe.MaxQuantity - existingQty
 			if quantityToAdd > remaining {
 				quantityToAdd = remaining
 			}
@@ -464,10 +517,21 @@ func CalculateAndSaveCraftingGains(userID uint, session database.BlacksmithSessi
 		}
 
 		if quantityToAdd > 0 {
-			database.DB.Exec(
-				"UPDATE user_ingot_inventories SET quantity = quantity + ? WHERE user_id = ? AND ingot_key = ?",
-				quantityToAdd, userID, recipe.ItemKey,
-			)
+			if recipe.OutputType == "ingot" {
+				var ingotItem database.UserIngotInventory
+				database.DB.FirstOrCreate(&ingotItem, database.UserIngotInventory{UserID: userID, IngotKey: recipe.ItemKey})
+				database.DB.Exec(
+					"UPDATE user_ingot_inventories SET quantity = quantity + ? WHERE user_id = ? AND ingot_key = ?",
+					quantityToAdd, userID, recipe.ItemKey,
+				)
+			} else if recipe.OutputType == "potion" {
+				var potionItem database.UserPotionInventoryItem
+				database.DB.FirstOrCreate(&potionItem, database.UserPotionInventoryItem{UserID: userID, PotionKey: recipe.ItemKey})
+				database.DB.Exec(
+					"UPDATE user_potion_inventory_items SET quantity = quantity + ? WHERE user_id = ? AND potion_key = ?",
+					quantityToAdd, userID, recipe.ItemKey,
+				)
+			}
 		}
 	}
 
@@ -493,16 +557,24 @@ func StopCrafting(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "no active crafting session"})
 	}
 
-	ingotsProduced := CalculateAndSaveCraftingGains(userID, session)
+	itemsProduced := CalculateAndSaveCraftingGains(userID, session)
 
 	recipe := session.CraftableItem
-	database.LogActivity(userID, fmt.Sprintf("Stopped crafting %s. Produced %d ingots.", recipe.Name, ingotsProduced))
+	outputTypeName := "items"
+	if recipe.OutputType == "ingot" {
+		outputTypeName = "ingots"
+	} else if recipe.OutputType == "potion" {
+		outputTypeName = "potions"
+	}
+	
+	database.LogActivity(userID, fmt.Sprintf("Stopped crafting %s. Produced %d %s.", recipe.Name, itemsProduced, outputTypeName))
 
 	return c.JSON(fiber.Map{
 		"status":           "crafting stopped",
 		"recipe_name":      recipe.Name,
-		"ingots_produced":  ingotsProduced,
-		"xp_earned":        ingotsProduced * recipe.XPPerCraft,
+		"output_type":      recipe.OutputType,
+		"items_produced":   itemsProduced,
+		"xp_earned":        itemsProduced * recipe.XPPerCraft,
 	})
 }
 
@@ -553,15 +625,24 @@ func GetCraftingStatus(c *fiber.Ctx) error {
 					canContinue = false
 					break
 				}
-			} else if ing.IngredientType == "ingot" {
-				var item database.UserIngotInventory
-				database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
-				if item.Quantity < ing.QuantityRequired {
-					canContinue = false
-					break
+				} else if ing.IngredientType == "herb" {
+					var herbType database.HerbType
+					database.DB.Where("herb_key = ?", ing.IngredientKey).First(&herbType)
+					var item database.HerbInventoryItem
+					database.DB.Where("user_id = ? AND herb_type_id = ?", userID, herbType.ID).First(&item)
+					if item.Quantity < ing.QuantityRequired {
+						canContinue = false
+						break
+					}
+				} else if ing.IngredientType == "ingot" {
+					var item database.UserIngotInventory
+					database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
+					if item.Quantity < ing.QuantityRequired {
+						canContinue = false
+						break
+					}
 				}
 			}
-		}
 
 		// If we don't have ingredients, stop the session
 		if !canContinue {
@@ -578,24 +659,33 @@ func GetCraftingStatus(c *fiber.Ctx) error {
 
 			// Build in-memory maps from current DB quantities
 			oreQuantities := make(map[string]int)
-			ingotQuantities := make(map[string]int)
-			for _, ing := range ingredients {
-				if ing.IngredientType == "ore" {
-					if _, loaded := oreQuantities[ing.IngredientKey]; !loaded {
-						var oreType database.OreType
-						database.DB.Where("ore_key = ?", ing.IngredientKey).First(&oreType)
-						var item database.OreInventoryItem
-						database.DB.Where("user_id = ? AND ore_type_id = ?", userID, oreType.ID).First(&item)
-						oreQuantities[ing.IngredientKey] = item.Quantity
-					}
-				} else if ing.IngredientType == "ingot" {
-					if _, loaded := ingotQuantities[ing.IngredientKey]; !loaded {
-						var item database.UserIngotInventory
-						database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
-						ingotQuantities[ing.IngredientKey] = item.Quantity
+				herbQuantities := make(map[string]int)
+				ingotQuantities := make(map[string]int)
+				for _, ing := range ingredients {
+					if ing.IngredientType == "ore" {
+						if _, loaded := oreQuantities[ing.IngredientKey]; !loaded {
+							var oreType database.OreType
+							database.DB.Where("ore_key = ?", ing.IngredientKey).First(&oreType)
+							var item database.OreInventoryItem
+							database.DB.Where("user_id = ? AND ore_type_id = ?", userID, oreType.ID).First(&item)
+							oreQuantities[ing.IngredientKey] = item.Quantity
+						}
+					} else if ing.IngredientType == "herb" {
+						if _, loaded := herbQuantities[ing.IngredientKey]; !loaded {
+							var herbType database.HerbType
+							database.DB.Where("herb_key = ?", ing.IngredientKey).First(&herbType)
+							var item database.HerbInventoryItem
+							database.DB.Where("user_id = ? AND herb_type_id = ?", userID, herbType.ID).First(&item)
+							herbQuantities[ing.IngredientKey] = item.Quantity
+						}
+					} else if ing.IngredientType == "ingot" {
+						if _, loaded := ingotQuantities[ing.IngredientKey]; !loaded {
+							var item database.UserIngotInventory
+							database.DB.Where("user_id = ? AND ingot_key = ?", userID, ing.IngredientKey).First(&item)
+							ingotQuantities[ing.IngredientKey] = item.Quantity
+						}
 					}
 				}
-			}
 
 			// Simulate pending ingots respecting ingredient limits
 			pendingIngots := 0
@@ -607,25 +697,32 @@ func GetCraftingStatus(c *fiber.Ctx) error {
 							canProduce = false
 							break
 						}
-					} else if ing.IngredientType == "ingot" {
-						if ingotQuantities[ing.IngredientKey] < ing.QuantityRequired {
+						} else if ing.IngredientType == "herb" {
+							if herbQuantities[ing.IngredientKey] < ing.QuantityRequired {
 							canProduce = false
 							break
 						}
+						} else if ing.IngredientType == "ingot" {
+							if ingotQuantities[ing.IngredientKey] < ing.QuantityRequired {
+								canProduce = false
+								break
+							}
+						}
 					}
-				}
-				if !canProduce {
-					break
-				}
-				for _, ing := range ingredients {
-					if ing.IngredientType == "ore" {
-						oreQuantities[ing.IngredientKey] -= ing.QuantityRequired
-					} else if ing.IngredientType == "ingot" {
-						ingotQuantities[ing.IngredientKey] -= ing.QuantityRequired
+					if !canProduce {
+						break
 					}
+					for _, ing := range ingredients {
+						if ing.IngredientType == "ore" {
+							oreQuantities[ing.IngredientKey] -= ing.QuantityRequired
+						} else if ing.IngredientType == "herb" {
+							herbQuantities[ing.IngredientKey] -= ing.QuantityRequired
+						} else if ing.IngredientType == "ingot" {
+							ingotQuantities[ing.IngredientKey] -= ing.QuantityRequired
+						}
+					}
+					pendingIngots++
 				}
-				pendingIngots++
-			}
 
 			// Apply max quantity cap
 			if recipe.MaxQuantity > 0 {
@@ -655,6 +752,22 @@ func GetCraftingStatus(c *fiber.Ctx) error {
 		response["crafting_time_ms"] = recipe.CraftingTimeMS
 		response["started_at"] = session.StartedAt
 		response["offline_gains"] = CalculateOfflineCraftingGains(userID, session)
+	}
+
+	return c.JSON(response)
+}
+
+// GetPotionInventory returns player's potion inventory
+// GET /api/blacksmith/inventory/potions
+func GetPotionInventory(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
+
+	var items []database.UserPotionInventoryItem
+	database.DB.Where("user_id = ?", userID).Find(&items)
+
+	response := make(map[string]int)
+	for _, item := range items {
+		response[item.PotionKey] = item.Quantity
 	}
 
 	return c.JSON(response)

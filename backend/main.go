@@ -69,6 +69,7 @@ func main() {
         api.Get("/blacksmith/skill", handlers.GetBlacksmithSkill)
         api.Get("/blacksmith/recipes", handlers.GetCraftableItems)
         api.Get("/blacksmith/inventory", handlers.GetIngotInventory)
+        api.Get("/blacksmith/inventory/potions", handlers.GetPotionInventory)
 
         // Inventory routes
         api.Get("/inventory/ores", handlers.GetOreInventory)

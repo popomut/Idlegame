@@ -10,6 +10,7 @@ export const tabSwitchCraftingGains = writable(null); // gains while tab was hid
 export const isLoadingCrafting = writable(false);
 export const craftingProgress = writable(0); // 0-100 progress bar (per ingot cycle)
 export const ingotInventory = writable({});
+export const potionInventory = writable({});
 
 let globalProgressInterval = null;
 let isStoppingCrafting = false;
@@ -78,15 +79,22 @@ export async function stopCrafting() {
     const response = await axios.post(`${API_BASE_URL}/api/blacksmith/stop`, {}, 
       { withCredentials: true }
     );
-    const ingotsProduced = response.data.ingots_produced || 0;
+    const itemsProduced = response.data.items_produced || 0;
+    const outputType = response.data.output_type || 'ingot';
     const xpEarned = response.data.xp_earned || 0;
 
     activeCrafting.set(null);
 
-    if (ingotsProduced > 0) {
-      showCraftingPopup(ingotsProduced);
-      addLogEntry(`Crafting complete - produced ${ingotsProduced} ingot(s), earned ${xpEarned} XP!`);
-      await syncIngotInventory();
+    if (itemsProduced > 0) {
+      const itemName = outputType === 'potion' ? 'Potion' : 'Ingot';
+      showCraftingPopup(itemsProduced, itemName);
+      addLogEntry(`Crafting complete - produced ${itemsProduced} ${itemName.toLowerCase()}(s), earned ${xpEarned} XP!`);
+      
+      if (outputType === 'potion') {
+        await syncPotionInventory();
+      } else {
+        await syncIngotInventory();
+      }
     }
   } catch (error) {
     console.error('Failed to stop crafting:', error);
@@ -114,6 +122,7 @@ export async function checkCraftingStatus() {
         timeMs: gains.offline_time_ms,
         ingotsGained: gains.ingots_gained,
         recipeName: gains.recipe_name,
+        outputType: gains.output_type || 'ingot',
       });
       addLogEntry(`You crafted ${gains.ingots_gained} ${gains.recipe_name} while away!`);
       await stopCrafting();
@@ -167,6 +176,32 @@ export async function syncIngotInventoryDuringCrafting() {
     }
   } catch (error) {
     console.error('Failed to sync ingot inventory during crafting:', error);
+  }
+}
+
+export async function syncPotionInventory() {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/blacksmith/inventory/potions`, 
+      { withCredentials: true }
+    );
+    potionInventory.set(response.data || {});
+  } catch (error) {
+    console.error('Failed to sync potion inventory:', error);
+  }
+}
+
+export async function syncPotionInventoryDuringCrafting() {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/blacksmith/status`, 
+      { withCredentials: true }
+    );
+    const data = response.data;
+
+    if (data.current_ingots) {
+      potionInventory.set({ ...data.current_ingots });
+    }
+  } catch (error) {
+    console.error('Failed to sync potion inventory during crafting:', error);
   }
 }
 

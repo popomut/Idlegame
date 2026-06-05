@@ -217,6 +217,7 @@ func migrate() error {
 		&CraftableItem{},    // blacksmith recipes
 		&CraftRecipeIngredient{}, // recipe ingredients
 		&UserIngotInventory{}, // ingot inventory pivot
+		&UserPotionInventoryItem{}, // potion inventory pivot
 		&BlacksmithSession{}, // active crafting session
 		&Monster{},
 		&MonsterDrop{},
@@ -657,6 +658,45 @@ func seedHerbTypes() error {
 			SortOrder:     10,
 			BasePrice:     50,
 		},
+		{
+			HerbKey:       "healgrass",
+			HerbName:      "Healgrass",
+			Icon:          "💚",
+			Color:         "#00cc66",
+			Difficulty:    "Common",
+			GatherTimeMS:  3000,
+			XPPerHerb:     10,
+			LevelRequired: 1,
+			MaxQuantity:   99999,
+			SortOrder:     11,
+			BasePrice:     2,
+		},
+		{
+			HerbKey:       "silverleaf",
+			HerbName:      "Silverleaf",
+			Icon:          "🌟",
+			Color:         "#c0c0c0",
+			Difficulty:    "Uncommon",
+			GatherTimeMS:  5000,
+			XPPerHerb:     20,
+			LevelRequired: 5,
+			MaxQuantity:   99999,
+			SortOrder:     12,
+			BasePrice:     5,
+		},
+		{
+			HerbKey:       "ironroot",
+			HerbName:      "Ironroot",
+			Icon:          "🪨",
+			Color:         "#808080",
+			Difficulty:    "Uncommon",
+			GatherTimeMS:  4500,
+			XPPerHerb:     18,
+			LevelRequired: 8,
+			MaxQuantity:   99999,
+			SortOrder:     13,
+			BasePrice:     4,
+		},
 	}
 
 	// Get herb extraction type ID
@@ -882,6 +922,32 @@ func seedCraftableItems() error {
 			SortOrder:      5,
 			BasePrice:      500,
 		},
+		{
+			Name:           "Health Potion",
+			Description:    "Restores vitality when needed",
+			Icon:           "🔴",
+			ItemKey:        "health_potion",
+			OutputType:     "potion",
+			CraftingTimeMS: 4000,
+			XPPerCraft:     15,
+			LevelRequired:  1,
+			MaxQuantity:    300,
+			SortOrder:      6,
+			BasePrice:      20,
+		},
+		{
+			Name:           "STR Potion",
+			Description:    "Boosts physical strength temporarily",
+			Icon:           "💪",
+			ItemKey:        "str_potion",
+			OutputType:     "potion",
+			CraftingTimeMS: 7000,
+			XPPerCraft:     35,
+			LevelRequired:  10,
+			MaxQuantity:    150,
+			SortOrder:      7,
+			BasePrice:      50,
+		},
 	}
 
 	// Only create if doesn't exist — preserve user edits on restart
@@ -952,6 +1018,32 @@ func seedCraftableItems() error {
 					IngredientType:  "ingot",
 					IngredientKey:   "mithril_ingot",
 					QuantityRequired: 3,
+				})
+			case "health_potion":
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "herb",
+					IngredientKey:   "healgrass",
+					QuantityRequired: 2,
+				})
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "herb",
+					IngredientKey:   "silverleaf",
+					QuantityRequired: 1,
+				})
+			case "str_potion":
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "herb",
+					IngredientKey:   "ironroot",
+					QuantityRequired: 3,
+				})
+				DB.Create(&CraftRecipeIngredient{
+					CraftableItemID: recipe.ID,
+					IngredientType:  "herb",
+					IngredientKey:   "silverleaf",
+					QuantityRequired: 2,
 				})
 			}
 		}  else if existing.BasePrice == 0 && recipe.BasePrice > 0 {

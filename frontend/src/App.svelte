@@ -20,6 +20,7 @@
   import CombatView from './views/CombatView.svelte';
   import MiningView from './views/MiningView.svelte';
   import BlacksmithView from './views/BlacksmithView.svelte';
+  import Crafting2View from './views/Crafting2View.svelte';
   import SkillsView from './views/SkillsView.svelte';
   import InventoryView from './views/InventoryView.svelte';
   import EquipmentView from './views/EquipmentView.svelte';
@@ -151,6 +152,8 @@
       <MiningView />
     {:else if $currentPage === 'blacksmith'}
       <BlacksmithView />
+    {:else if $currentPage === 'crafting2'}
+      <Crafting2View />
     {:else if $currentPage === 'equipment'}
       <EquipmentView />
     {:else if $currentPage === 'skills'}

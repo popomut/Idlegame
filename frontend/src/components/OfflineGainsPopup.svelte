@@ -1,6 +1,6 @@
 <script>
   import { offlineGains, syncOreInventory, tabSwitchGains } from '../stores/mining.js';
-  import { offlineCraftingGains, syncIngotInventory, tabSwitchCraftingGains } from '../stores/blacksmith.js';
+  import { offlineCraftingGains, syncIngotInventory, syncPotionInventory, tabSwitchCraftingGains } from '../stores/blacksmith.js';
   import { fade, scale } from 'svelte/transition';
 
   async function handleAwesomeClick() {
@@ -8,7 +8,12 @@
       await syncOreInventory();
       offlineGains.set(null);
     } else if ($offlineCraftingGains?.wasOffline) {
-      await syncIngotInventory();
+      // Sync the appropriate inventory based on output type
+      if ($offlineCraftingGains.outputType === 'potion') {
+        await syncPotionInventory();
+      } else {
+        await syncIngotInventory();
+      }
       offlineCraftingGains.set(null);
     }
   }
