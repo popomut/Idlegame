@@ -19,6 +19,8 @@
   let syncInterval = null;
   let pendingItems = {}; // Tracks items produced in current cycle before sync
   let ingredientInventory = {}; // ore_key/herb_key → quantity for ingredient availability display
+  let allOreTypes = [];      // all ores — for material cache with icons
+  let allHerbTypes = [];     // all herbs — for material cache with icons
 
   async function fetchAllIngredients() {
     try {
@@ -58,6 +60,18 @@
       filterRecipesByOutputType(selectedOutputType);
     } catch (e) {
       console.error('Failed to load recipes:', e);
+    }
+
+    // Load ALL ore and herb types for material cache icons
+    try {
+      const [oreResp, herbResp] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/ore-types`, { withCredentials: true }),
+        axios.get(`${API_BASE_URL}/api/herb-types`, { withCredentials: true }),
+      ]);
+      allOreTypes = oreResp.data || [];
+      allHerbTypes = herbResp.data || [];
+    } catch (e) {
+      console.error('Failed to load ore/herb types for cache:', e);
     }
 
     // Always sync inventory first to populate Material Cache
@@ -222,22 +236,11 @@
       );
       const status = response.data;
 
-      // Update inventory with server values based on recipe output type
-      // Note: current_ingots response field works for both ingot and potion
-      if (status.current_ingots) {
-        const recipe = recipes.find(r => r.name === recipeName);
-        if (recipe) {
-          if (recipe.output_type === 'potion') {
-            $potionInventory = { ...status.current_ingots };
-          } else {
-            $ingotInventory = { ...status.current_ingots };
-          }
-        }
-        // Reset pending since server now has the true count
-        pendingItems = {};
-        // Also refresh ingredient inventory since ingredients may have been consumed
-        fetchAllIngredients();
-      }
+      // Refresh ingredient inventory (to reflect consumed ingredients)
+      // but do NOT overwrite $ingotInventory/$potionInventory here —
+      // we let pendingItems accumulate locally (mirrors MiningView pattern).
+      // The confirmed inventory is only synced on stopCrafting().
+      fetchAllIngredients();
 
       // If status shows inactive, server auto-stopped us (no ingredients)
       if (!status.is_active) {
@@ -286,6 +289,42 @@
     recipes.filter(r => r.max_quantity > 0).map(r => [r.item_key, r.max_quantity])
   );
 
+  // Build map from ingredient key to metadata (name, icon, type)
+  function buildIngredientMetadataMap() {
+    const map = {};
+    
+    // Add ores
+    allOreTypes.forEach(ore => {
+      map[ore.ore_key] = {
+        name: ore.ore_name,
+        icon: ore.icon,
+        type: 'ore'
+      };
+    });
+    
+    // Add herbs
+    allHerbTypes.forEach(herb => {
+      map[herb.herb_key] = {
+        name: herb.herb_name,
+        icon: herb.icon,
+        type: 'herb'
+      };
+    });
+    
+    // Add ingots (from recipes with ingot output type)
+    recipes.forEach(recipe => {
+      if (recipe.output_type === 'ingot') {
+        map[recipe.item_key] = {
+          name: recipe.name,
+          icon: recipe.icon,
+          type: 'ingot'
+        };
+      }
+    });
+    
+    return map;
+  }
+
   function formatInterval(ms) {
     if (ms < 1000) return `${ms}ms`;
     return `${(ms / 1000).toFixed(0)}s`;
@@ -325,34 +364,41 @@
     </button>
 
     {#if inventoryOpen}
-      <div class="inventory-summary">
-        {#if Object.keys(allInventories).length === 0 && Object.keys(pendingItems).length === 0}
+      {#if recipes.filter(r => r.output_type === selectedOutputType).length === 0}
+        <div class="inventory-summary">
           <p class="loading-text">No items crafted yet</p>
-        {:else}
-          {#each Object.entries(allInventories) as [key, qty]}
-            <div class="item-count">
-              <span class="item-icon">{selectedOutputType === 'potion' ? '🧪' : '⚒️'}</span>
-              <span class="item-label">{key}</span>
-              <span class="item-qty">{qty + (pendingItems[key] ?? 0)}</span>
-              {#if maxQtyMap[key]}
-                <span class="item-max">/ {maxQtyMap[key]}</span>
-              {/if}
-            </div>
-          {/each}
-          {#each Object.entries(pendingItems) as [key, qty]}
-            {#if !allInventories[key]}
+        </div>
+      {:else}
+        {@const activeInventory = selectedOutputType === 'potion' ? $potionInventory : $ingotInventory}
+        {@const craftedItems = recipes
+          .filter(r => r.output_type === selectedOutputType)
+          .map(r => ({
+            key: r.item_key,
+            name: r.name,
+            icon: r.icon,
+            max_quantity: r.max_quantity,
+            quantity: activeInventory[r.item_key] ?? 0,
+            pending: pendingItems[r.item_key] ?? 0,
+          }))
+          .filter(item => item.quantity + item.pending > 0)
+        }
+        <div class="inventory-summary">
+          {#if craftedItems.length === 0}
+            <p class="loading-text">No items crafted yet</p>
+          {:else}
+            {#each craftedItems as item}
               <div class="item-count">
-                <span class="item-icon">{selectedOutputType === 'potion' ? '🧪' : '⚒️'}</span>
-                <span class="item-label">{key}</span>
-                <span class="item-qty">{qty}</span>
-                {#if maxQtyMap[key]}
-                  <span class="item-max">/ {maxQtyMap[key]}</span>
+                <span class="item-icon">{item.icon}</span>
+                <span class="item-label">{item.name}</span>
+                <span class="item-qty">{item.quantity + item.pending}</span>
+                {#if item.max_quantity > 0}
+                  <span class="item-max">/ {item.max_quantity}</span>
                 {/if}
               </div>
-            {/if}
-          {/each}
-        {/if}
-      </div>
+            {/each}
+          {/if}
+        </div>
+      {/if}
     {/if}
   </div>
 

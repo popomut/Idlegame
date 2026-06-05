@@ -596,13 +596,20 @@ func GetCraftingStatus(c *fiber.Ctx) error {
 		isActive = false
 	}
 
-	// Build current ingot quantities from database
-	var items []database.UserIngotInventory
-	database.DB.Where("user_id = ?", userID).Find(&items)
-
+	// Build current inventory quantities from database (based on active recipe output type)
 	currentIngots := make(map[string]int)
-	for _, item := range items {
-		currentIngots[item.IngotKey] = item.Quantity
+	if isActive && session.CraftableItem.OutputType == "potion" {
+		var potionItems []database.UserPotionInventoryItem
+		database.DB.Where("user_id = ?", userID).Find(&potionItems)
+		for _, item := range potionItems {
+			currentIngots[item.PotionKey] = item.Quantity
+		}
+	} else {
+		var ingotItems []database.UserIngotInventory
+		database.DB.Where("user_id = ?", userID).Find(&ingotItems)
+		for _, item := range ingotItems {
+			currentIngots[item.IngotKey] = item.Quantity
+		}
 	}
 
 	// Add pending (unsaved) ingots for the active session
