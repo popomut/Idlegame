@@ -21,6 +21,7 @@
   let ingredientInventory = {}; // ore_key/herb_key → quantity for ingredient availability display
   let allOreTypes = [];      // all ores — for material cache with icons
   let allHerbTypes = [];     // all herbs — for material cache with icons
+  let pendingIngredientConsumption = {}; // ingredient_key → quantity being consumed across all crafting cycles
 
   async function fetchAllIngredients() {
     try {
@@ -96,6 +97,8 @@
   onDestroy(function () {
     clearInterval(craftingInterval);
     clearInterval(syncInterval);
+    pendingItems = {};
+    pendingIngredientConsumption = {};
   });
 
   // Returns how many times recipe can be crafted based on current inventory
@@ -126,6 +129,7 @@
         craftingInterval = null;
         syncInterval = null;
         pendingItems = {};
+        pendingIngredientConsumption = {};
         await stopCrafting();
         addLogEntry(`Stopped crafting ${recipeName}.`);
       }
@@ -144,6 +148,7 @@
       craftingInterval = null;
       syncInterval = null;
       pendingItems = {};
+      pendingIngredientConsumption = {};
       await stopCrafting();
       addLogEntry(`Stopped crafting ${currentName}.`);
     } else {
@@ -184,6 +189,10 @@
     // Reset pending on new session so display starts clean
     pendingItems = {};
 
+    // Start with empty consumption tracking
+    // We'll INCREMENT this as each cycle completes (tracking what's been consumed so far)
+    pendingIngredientConsumption = {};
+
     let remainingCrafts = maxCrafts;
 
     // Fast loop: Update pendingItems and show popup every crafting cycle
@@ -206,6 +215,7 @@
         craftingInterval = null;
         syncInterval = null;
         pendingItems = {};
+        pendingIngredientConsumption = {};
         await stopCrafting();
         addLogEntry(`⚠️ Stopped crafting - not enough ingredients.`);
         return;
@@ -221,6 +231,12 @@
       const currentPending = (pendingItems[itemKey] || 0);
       pendingItems = { ...pendingItems, [itemKey]: currentPending + 1 };
       showCraftingPopup(1, itemKey);
+
+      // Increment pending ingredient consumption (track what's been consumed so far in this session)
+      recipe.ingredients.forEach(ing => {
+        const current = pendingIngredientConsumption[ing.ingredient_key] || 0;
+        pendingIngredientConsumption[ing.ingredient_key] = current + ing.quantity_required;
+      });
     }, interval);
 
     // Keep a fallback sync in case the cycle check misses a tick
@@ -249,6 +265,7 @@
         craftingInterval = null;
         syncInterval = null;
         pendingItems = {};
+        pendingIngredientConsumption = {};
         $activeCrafting = null;
         addLogEntry(`⚠️ Crafting stopped - not enough ingredients.`);
         return false; // signal to caller that crafting stopped
@@ -456,9 +473,11 @@
             {#if !isLocked && recipe.ingredients && recipe.ingredients.length > 0}
               <div class="recipe-ing-status">
                 {#each recipe.ingredients as ing}
-                  {@const have = ing.ingredient_type === 'ore' || ing.ingredient_type === 'herb'
+                  {@const confirmed = ing.ingredient_type === 'ore' || ing.ingredient_type === 'herb'
                     ? (ingredientInventory[ing.ingredient_key] || 0)
                     : ($ingotInventory[ing.ingredient_key] || 0)}
+                  {@const pending = pendingIngredientConsumption[ing.ingredient_key] || 0}
+                  {@const have = Math.max(0, confirmed - pending)}
                   {@const enough = have >= ing.quantity_required}
                   <div class="ing-avail" class:ing-avail-low={!enough}>
                     <span class="ing-avail-count">{have}/{ing.quantity_required}</span>
