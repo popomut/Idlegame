@@ -102,3 +102,7 @@ export const combatAPI = {
   getStatus:    () => api.get('/combat/status'),
   flee:         () => api.post('/combat/flee'),
 };
+
+export const worldAPI = {
+  getActivity: () => api.get('/world/activity'),
+};

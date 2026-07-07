@@ -352,6 +352,14 @@ func processCombatRounds(session *database.ActiveCombat, user *database.User, eq
 				session.TotalXPGained += xp
 				session.TotalMoneyGained += money
 
+				// Accumulate lifetime kill count for this monster (used by kill-type quest objectives)
+				database.DB.Exec(
+					`INSERT INTO user_monster_kills (user_id, monster_key, total_kills, updated_at)
+					 VALUES (?, ?, 1, ?)
+					 ON CONFLICT(user_id, monster_key) DO UPDATE SET total_kills = total_kills + 1, updated_at = excluded.updated_at`,
+					user.ID, currentEnemy.MonsterKey, now,
+				)
+
 				if len(logs) < combatMaxLogs {
 					logs = append(logs, CombatLogEntry{
 						Timestamp: now.UnixMilli(),

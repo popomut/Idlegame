@@ -95,6 +95,7 @@ type CraftableItem struct {
 	SortOrder        int    `gorm:"default:0" json:"sort_order"`            // display order in UI
 	MaxQuantity      int    `gorm:"default:0" json:"max_quantity"`          // 0 = unlimited (for ingots)
 	BasePrice        int    `gorm:"default:0" json:"base_price"`            // base sell price per unit
+	RequiresQuestKey string `gorm:"default:''" json:"requires_quest_key"`   // empty = always available
 	CreatedAt        time.Time `json:"created_at"`
 }
 
@@ -185,6 +186,7 @@ type OreType struct {
 	SortOrder        int    `gorm:"default:0"`      // display order in UI
 	BasePrice        int    `gorm:"default:0" json:"base_price"` // base sell price per unit
 	ExtractionTypeID uint   // foreign key to ExtractableType
+	RequiresQuestKey string `gorm:"default:''"` // empty = no gate; quest_key that must be completed to access
 
 	CreatedAt time.Time
 }
@@ -205,6 +207,7 @@ type HerbType struct {
 	SortOrder        int    `gorm:"default:0"`      // display order in UI
 	BasePrice        int    `gorm:"default:0" json:"base_price"` // base sell price per unit
 	ExtractionTypeID uint   // foreign key to ExtractableType
+	RequiresQuestKey string `gorm:"default:''"` // empty = no gate
 
 	CreatedAt time.Time
 }
@@ -281,6 +284,7 @@ type Area struct {
 	FightsBeforeBoss int    `gorm:"default:5"`
 	BossMonsterKey   string `gorm:"not null"` // references Monster.MonsterKey
 	SortOrder        int    `gorm:"default:0"`
+	RequiresQuestKey string `gorm:"default:''"` // empty = always accessible
 	CreatedAt        time.Time
 }
 
@@ -406,6 +410,72 @@ type MonsterDrop struct {
 	DropMax    int     `gorm:"default:1"`   // max quantity
 
 	CreatedAt time.Time
+}
+
+// Quest defines a story quest in the master table.
+// Add rows to extend the quest chain — no code changes needed.
+// RequiresQuestID = 0 means the quest is available from the start.
+type Quest struct {
+	ID             uint   `gorm:"primaryKey"`
+	QuestKey       string `gorm:"uniqueIndex;not null"` // e.g. "ch1_first_blood"
+	Title          string `gorm:"not null"`
+	Chapter        int    `gorm:"default:1"`  // used for display grouping
+	SortOrder      int    `gorm:"default:0"`
+	IntroText      string `gorm:"type:text"`  // shown before the player accepts
+	CompletionText string `gorm:"type:text"`  // shown when the player completes it
+	RequiresQuestID uint  `gorm:"default:0"` // 0 = no prerequisite
+
+	CreatedAt time.Time
+}
+
+// QuestObjective defines one requirement that must be satisfied to complete a Quest.
+// ObjectiveType: kill | mine | gather | craft | reach_char_level | reach_mining_level | reach_blacksmith_level | deliver
+// TargetKey: monster_key / ore_key / herb_key / item_key (empty for level objectives)
+// TargetCount: quantity or level threshold required
+type QuestObjective struct {
+	ID            uint   `gorm:"primaryKey"`
+	QuestID       uint   `gorm:"not null;index"`
+	Quest         Quest  `gorm:"foreignKey:QuestID"`
+	ObjectiveType string `gorm:"not null"`
+	TargetKey     string // which resource/monster/item
+	TargetCount   int    `gorm:"default:1"`
+	DisplayText   string // optional UI label override
+}
+
+// QuestReward defines one reward granted on quest completion.
+// RewardType: xp | money | equipment
+// RewardKey: equipment_key (for equipment rewards; empty for xp/money)
+// Amount: quantity of XP, money, or equipment copies
+type QuestReward struct {
+	ID         uint   `gorm:"primaryKey"`
+	QuestID    uint   `gorm:"not null;index"`
+	Quest      Quest  `gorm:"foreignKey:QuestID"`
+	RewardType string `gorm:"not null"` // xp | money | equipment
+	RewardKey  string // equipment_key for equipment rewards
+	Amount     int64  `gorm:"default:0"`
+}
+
+// UserQuest tracks one player's status on a single quest.
+// Status: locked | available | completed
+type UserQuest struct {
+	ID          uint       `gorm:"primaryKey"`
+	UserID      uint       `gorm:"not null;uniqueIndex:idx_user_quest"`
+	QuestID     uint       `gorm:"not null;uniqueIndex:idx_user_quest"`
+	Quest       Quest      `gorm:"foreignKey:QuestID"`
+	Status      string     `gorm:"default:'locked'"` // locked | available | completed
+	CompletedAt *time.Time
+
+	UpdatedAt time.Time
+}
+
+// UserMonsterKills accumulates lifetime kill counts per monster type per user.
+// Incremented every time a monster is defeated in active combat.
+type UserMonsterKills struct {
+	ID         uint   `gorm:"primaryKey"`
+	UserID     uint   `gorm:"not null;uniqueIndex:idx_user_monsterkill"`
+	MonsterKey string `gorm:"not null;uniqueIndex:idx_user_monsterkill"`
+	TotalKills int    `gorm:"default:0"`
+	UpdatedAt  time.Time
 }
 
 // ActivityLog stores player actions

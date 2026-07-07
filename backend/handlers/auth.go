@@ -140,6 +140,8 @@ func Register(c *fiber.Ctx) error {
 	initializeMiningSkill(user.ID)
 	// Initialize blacksmith skill
 	initializeBlacksmithSkill(user.ID)
+	// Initialize quest rows
+	database.InitUserQuests(user.ID)
 
 	// Generate JWT token
 	token, err := utils.GenerateJWT(user.ID)
@@ -232,6 +234,8 @@ func GuestLogin(c *fiber.Ctx) error {
 	initializeMiningSkill(user.ID)
 	// Initialize blacksmith skill
 	initializeBlacksmithSkill(user.ID)
+	// Initialize quest rows
+	database.InitUserQuests(user.ID)
 	
 	// Generate JWT token
 	token, err := utils.GenerateJWT(user.ID)

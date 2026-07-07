@@ -8,6 +8,7 @@
   import { loadConfigFromStorage } from './stores/config.js';
   import { theme } from './stores/theme.js';
   import { syncCharacter } from './stores/game.js';
+  import { syncQuests } from './stores/quest.js';
   import { combatState, fetchCombatStatus } from './stores/combat.js';
 
   import TopBar from './components/TopBar.svelte';
@@ -17,6 +18,8 @@
 
   import LoginView from './views/LoginView.svelte';
   import HomeView from './views/HomeView.svelte';
+  import WorldView from './views/WorldView.svelte';
+  import QuestView from './views/QuestView.svelte';
   import CombatView from './views/CombatView.svelte';
   import MiningView from './views/MiningView.svelte';
   import BlacksmithView from './views/BlacksmithView.svelte';
@@ -71,6 +74,7 @@
       await syncCharacter();
       await initMiningStatus();
       await initCraftingStatus();
+      await syncQuests();
     }
 
     // Global page visibility handler: when user returns from background,
@@ -144,6 +148,10 @@
   <main class="main-content" class:sidebar-expanded={$sidebarOpen}>
     {#if $currentPage === 'home'}
       <HomeView />
+    {:else if $currentPage === 'world'}
+      <WorldView />
+    {:else if $currentPage === 'quests'}
+      <QuestView />
     {:else if $currentPage === 'combat'}
       <CombatView />
     {:else if $currentPage === 'map'}

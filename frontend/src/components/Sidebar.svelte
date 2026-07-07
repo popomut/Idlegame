@@ -4,6 +4,8 @@
 
   const menuItems = [
     { id: 'home',         label: 'Base Camp',      icon: '&#x26FA;' },
+    { id: 'world',        label: 'Live World',     icon: '&#x1F30D;' },
+    { id: 'quests',       label: 'Quests',         icon: '&#x1F4DC;' },
     { id: 'combat',       label: 'Engagement',     icon: '&#x2694;&#xFE0F;' },
     { id: 'map',          label: 'World Map',      icon: '&#x1F5FA;&#xFE0F;' },
     { id: 'mining',       label: 'Extraction',     icon: '&#x26CF;&#xFE0F;' },

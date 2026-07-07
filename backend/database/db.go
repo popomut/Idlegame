@@ -196,6 +196,18 @@ func Init() error {
 		return err
 	}
 
+	// Seed Chapter 1 quest chain
+	err = seedQuests()
+	if err != nil {
+		return err
+	}
+
+	// Back-fill quest rows for existing users
+	err = backfillUserQuests()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -229,6 +241,11 @@ func migrate() error {
 		&Equipment{},
 		&UserEquipment{},
 		&UserEquippedSlot{},
+		&Quest{},
+		&QuestObjective{},
+		&QuestReward{},
+		&UserQuest{},
+		&UserMonsterKills{},
 		&ActivityLog{},
 	)
 }
@@ -1519,4 +1536,171 @@ func LogError(msg string, err error) {
 	if err != nil {
 		log.Printf("[ERROR] %s: %v\n", msg, err)
 	}
+}
+
+// ── Quest seeding ──────────────────────────────────────────────────────────
+
+// seedQuests creates the Chapter 1 quest chain if it doesn't already exist.
+func seedQuests() error {
+	quests := []Quest{
+		{
+			QuestKey:       "ch1_first_blood",
+			Title:          "First Blood",
+			Chapter:        1,
+			SortOrder:      1,
+			RequiresQuestID: 0,
+			IntroText:      "The wasteland is unforgiving. Your first lesson: survive. Head into the ruins and bring something down. Prove you belong here.",
+			CompletionText: "You did it. First kill. It won't be your last — but it matters. The road ahead is long.",
+		},
+		{
+			QuestKey:       "ch1_ore_collector",
+			Title:          "Ore Collector",
+			Chapter:        1,
+			SortOrder:      2,
+			IntroText:      "Fighting keeps you alive, but resources build your future. Get your hands dirty at the mines — we need copper, and lots of it.",
+			CompletionText: "A solid haul. Copper isn't glamorous but it's the foundation of everything. Hold onto it.",
+		},
+		{
+			QuestKey:       "ch1_forged_in_fire",
+			Title:          "Forged in Fire",
+			Chapter:        1,
+			SortOrder:      3,
+			IntroText:      "Raw ore is just rock until a smith shapes it. Get to the Blacksmith and forge your first ingot. That's where real value is created.",
+			CompletionText: "That ingot came from nothing — rock, heat, and skill. You're starting to understand how this world works.",
+		},
+		{
+			QuestKey:       "ch1_deep_delver",
+			Title:          "Deep Delver",
+			Chapter:        1,
+			SortOrder:      4,
+			IntroText:      "Copper will only take you so far. Push your mining deeper. The tougher seams are where real rewards lie.",
+			CompletionText: "Level 3 in the mines. You've earned access to iron deposits. The real grind begins now.",
+		},
+		{
+			QuestKey:       "ch1_proving_grounds",
+			Title:          "Proving Grounds",
+			Chapter:        1,
+			SortOrder:      5,
+			IntroText:      "Word spreads fast out here. You've shown you can mine and fight, but can you do both? This is your final trial for Chapter 1.",
+			CompletionText: "Chapter 1 complete. You've survived, gathered, crafted, and fought. You're no longer a recruit. What comes next will test you harder.",
+		},
+	}
+
+	// Insert quests, capture IDs for objectives/rewards and prerequisite chaining
+	questIDs := map[string]uint{}
+	for i := range quests {
+		var existing Quest
+		if DB.Where("quest_key = ?", quests[i].QuestKey).First(&existing).Error != nil {
+			// Set prerequisite based on previous quest (except first)
+			if i > 0 {
+				quests[i].RequiresQuestID = questIDs[quests[i-1].QuestKey]
+			}
+			DB.Create(&quests[i])
+			questIDs[quests[i].QuestKey] = quests[i].ID
+		} else {
+			questIDs[existing.QuestKey] = existing.ID
+		}
+	}
+
+	// Seed objectives
+	type objSeed struct {
+		questKey      string
+		objectiveType string
+		targetKey     string
+		targetCount   int
+		displayText   string
+	}
+	objectives := []objSeed{
+		{"ch1_first_blood",      "kill",               "",            1,  "Defeat 1 enemy"},
+		{"ch1_ore_collector",    "mine",               "copper_ore",  50, "Mine 50 Copper Ore"},
+		{"ch1_forged_in_fire",   "craft",              "copper_ingot", 1, "Craft 1 Copper Ingot"},
+		{"ch1_deep_delver",      "reach_mining_level", "",            3,  "Reach Mining Level 3"},
+		{"ch1_proving_grounds",  "kill",               "",            10, "Defeat 10 enemies"},
+		{"ch1_proving_grounds",  "deliver",            "copper_ore",  20, "Deliver 20 Copper Ore"},
+	}
+	for _, o := range objectives {
+		qID, ok := questIDs[o.questKey]
+		if !ok {
+			continue
+		}
+		var existing QuestObjective
+		if DB.Where("quest_id = ? AND objective_type = ? AND target_key = ?", qID, o.objectiveType, o.targetKey).First(&existing).Error != nil {
+			DB.Create(&QuestObjective{
+				QuestID:       qID,
+				ObjectiveType: o.objectiveType,
+				TargetKey:     o.targetKey,
+				TargetCount:   o.targetCount,
+				DisplayText:   o.displayText,
+			})
+		}
+	}
+
+	// Seed rewards
+	type rewSeed struct {
+		questKey   string
+		rewardType string
+		rewardKey  string
+		amount     int64
+	}
+	rewards := []rewSeed{
+		{"ch1_first_blood",     "xp",        "",        50},
+		{"ch1_first_blood",     "money",      "",        10},
+		{"ch1_ore_collector",   "xp",        "",        100},
+		{"ch1_ore_collector",   "money",      "",        25},
+		{"ch1_forged_in_fire",  "xp",        "",        150},
+		{"ch1_forged_in_fire",  "equipment",  "rusty_blade", 1},
+		{"ch1_deep_delver",     "xp",        "",        200},
+		{"ch1_deep_delver",     "money",      "",        50},
+		{"ch1_proving_grounds", "xp",        "",        300},
+		{"ch1_proving_grounds", "money",      "",        100},
+	}
+	for _, r := range rewards {
+		qID, ok := questIDs[r.questKey]
+		if !ok {
+			continue
+		}
+		var existing QuestReward
+		if DB.Where("quest_id = ? AND reward_type = ? AND reward_key = ?", qID, r.rewardType, r.rewardKey).First(&existing).Error != nil {
+			DB.Create(&QuestReward{
+				QuestID:    qID,
+				RewardType: r.rewardType,
+				RewardKey:  r.rewardKey,
+				Amount:     r.amount,
+			})
+		}
+	}
+
+	return nil
+}
+
+// InitUserQuests creates UserQuest rows for a newly registered or guest user.
+// The first quest (no prerequisite) is set to available; others start locked.
+func InitUserQuests(userID uint) {
+	var allQuests []Quest
+	DB.Order("sort_order ASC").Find(&allQuests)
+
+	for _, q := range allQuests {
+		var existing UserQuest
+		if DB.Where("user_id = ? AND quest_id = ?", userID, q.ID).First(&existing).Error != nil {
+			status := "locked"
+			if q.RequiresQuestID == 0 {
+				status = "available"
+			}
+			DB.Create(&UserQuest{
+				UserID:  userID,
+				QuestID: q.ID,
+				Status:  status,
+			})
+		}
+	}
+}
+
+// backfillUserQuests ensures existing users have UserQuest rows for any quests added after their registration.
+func backfillUserQuests() error {
+	var users []User
+	DB.Find(&users)
+	for _, u := range users {
+		InitUserQuests(u.ID)
+	}
+	return nil
 }

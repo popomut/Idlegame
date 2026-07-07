@@ -137,6 +137,28 @@ func main() {
         api.Put("/admin/blacksmith-levels/:level", handlers.AdminUpdateBlacksmithLevel)
         api.Delete("/admin/blacksmith-levels/:level", handlers.AdminDeleteBlacksmithLevel)
 
+        // World activity (live feed of all currently-active players)
+        api.Get("/world/activity", handlers.GetWorldActivity)
+
+        // Quest routes
+        api.Get("/quests", handlers.GetQuests)
+        api.Get("/quests/:key", handlers.GetQuest)
+        api.Post("/quests/:key/complete", handlers.CompleteQuest)
+
+        // Admin quest management (development only — delete before production)
+        api.Get("/admin/quests", handlers.AdminGetAllQuests)
+        api.Post("/admin/quests", handlers.AdminCreateQuest)
+        api.Put("/admin/quests/:id", handlers.AdminUpdateQuest)
+        api.Delete("/admin/quests/:id", handlers.AdminDeleteQuest)
+        api.Get("/admin/quests/:id/objectives", handlers.AdminGetQuestObjectives)
+        api.Post("/admin/quest-objectives", handlers.AdminCreateQuestObjective)
+        api.Put("/admin/quest-objectives/:id", handlers.AdminUpdateQuestObjective)
+        api.Delete("/admin/quest-objectives/:id", handlers.AdminDeleteQuestObjective)
+        api.Get("/admin/quests/:id/rewards", handlers.AdminGetQuestRewards)
+        api.Post("/admin/quest-rewards", handlers.AdminCreateQuestReward)
+        api.Put("/admin/quest-rewards/:id", handlers.AdminUpdateQuestReward)
+        api.Delete("/admin/quest-rewards/:id", handlers.AdminDeleteQuestReward)
+
         // Start server
         port := 5000
         fmt.Printf("🚀 Server running on http://0.0.0.0:%d\n", port)
